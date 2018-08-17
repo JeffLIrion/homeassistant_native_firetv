@@ -106,7 +106,7 @@ class FireTVDevice(MediaPlayerDevice):
         }.get(self._firetv.state, STATE_UNKNOWN)
 
         if self._state not in [STATE_OFF, STATE_UNKNOWN]:
-            self._running_apps = self._firetv.running_apps
+            self._running_apps = self._firetv.running_apps()
             self._current_app = self._firetv.current_app
         else:
             self._running_apps = None
