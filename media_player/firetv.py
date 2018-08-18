@@ -9,21 +9,21 @@ import voluptuous as vol
 
 from homeassistant.components.media_player import (
     SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PREVIOUS_TRACK, PLATFORM_SCHEMA,
-    SUPPORT_SELECT_SOURCE, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
+    SUPPORT_SELECT_SOURCE, SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON,
     SUPPORT_VOLUME_SET, SUPPORT_PLAY, MediaPlayerDevice)
 from homeassistant.const import (
     STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING, STATE_STANDBY,
     STATE_UNKNOWN, CONF_HOST, CONF_NAME)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['adb==1.3.0', 'M2Crypto==0.30.1']
+REQUIREMENTS = ['libusb1>=1.0.16', 'pycryptodome']
 
 _LOGGER = logging.getLogger(__name__)
 
 SUPPORT_FIRETV = SUPPORT_PAUSE | \
     SUPPORT_TURN_ON | SUPPORT_TURN_OFF | SUPPORT_PREVIOUS_TRACK | \
-    SUPPORT_NEXT_TRACK | SUPPORT_SELECT_SOURCE | SUPPORT_VOLUME_SET | \
-    SUPPORT_PLAY
+    SUPPORT_NEXT_TRACK | SUPPORT_SELECT_SOURCE | SUPPORT_STOP | \
+    SUPPORT_VOLUME_SET | SUPPORT_PLAY
 
 CONF_ADBKEY = 'adbkey'
 
@@ -112,6 +112,9 @@ class FireTVDevice(MediaPlayerDevice):
             self._running_apps = None
             self._current_app = None
 
+            if self._state == STATE_UNKNOWN:
+                self._firetv.connect()
+
     def turn_on(self):
         """Turn on the device."""
         self._firetv.turn_on()
@@ -132,6 +135,10 @@ class FireTVDevice(MediaPlayerDevice):
         """Send play/pause command."""
         self._firetv.media_play_pause()
 
+    def media_stop(self):
+        """Send stop (back) command."""
+        self._firetv.back()
+
     def volume_up(self):
         """Send volume up command."""
         self._firetv.volume_up()
@@ -151,7 +158,7 @@ class FireTVDevice(MediaPlayerDevice):
     def select_source(self, source):
         """Select input source."""
         if isinstance(source, str):
-            if not source.startswith('STOP'):
+            if not source.startswith('!'):
                 self._firetv.launch_app(source)
             else:
-                self._firetv.stop_app(source[4:].lstrip())
+                self._firetv.stop_app(source[1:].lstrip())
