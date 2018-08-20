@@ -16,7 +16,7 @@ from homeassistant.const import (
     STATE_UNKNOWN, CONF_HOST, CONF_NAME)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['libusb1>=1.0.16', 'pycryptodome']
+REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2']
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -11,8 +11,11 @@ import re
 from socket import error as socket_error
 
 from custom_components.adb import adb_commands
-from custom_components.adb import sign_pycryptodome
+from custom_components.adb.sign_pythonrsa import PythonRSASigner
 from custom_components.adb.adb_protocol import InvalidChecksumError
+
+
+Signer = PythonRSASigner.FromRSAKeyPath
 
 # Matches window windows output for app & activity name gathering
 WINDOW_REGEX = re.compile("Window\{(?P<id>.+?) (?P<user>.+) (?P<package>.+?)(?:\/(?P<activity>.+?))?\}$", re.MULTILINE)
@@ -109,7 +112,7 @@ class FireTV:
         """
         try:
             if self.adbkey:
-                signer = sign_pycryptodome.PycryptodomeAuthSigner(self.adbkey)
+                signer = Signer(self.adbkey)
 
                 # Connect to the device
                 self._adb = adb_commands.AdbCommands().ConnectDevice(serial=self.host, rsa_keys=[signer])
