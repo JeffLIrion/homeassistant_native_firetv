@@ -27,7 +27,10 @@ media_player:
 
 ## Current status / known issues
 
-I can get the media players to show up in Home Assistant.  I can turn them on/off.  However, their states don't update.
+I have two Fire TV sticks, one that requires authentication and one that does not.
+
+* The Fire TV without authentication seems to be working correctly for me.
+* The Fire TV that requires authentication shows up in Home Assistant when I use M2Crypto, but not when I use pycryptodome.  I'm able to use M2Crypto on my Home Assistant installation in a virtual environment on my laptop, but not in Hass.io on my Raspberry Pi.
 
 
 ## Acknowledgments
