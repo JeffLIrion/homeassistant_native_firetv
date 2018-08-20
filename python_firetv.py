@@ -118,6 +118,11 @@ class FireTV:
         except socket_error as serr:
             logging.warning("Couldn't connect to host: %s, error: %s", self.host, serr.strerror)
 
+    # ======================================================================= #
+    #                                                                         #
+    #                               Properties                                #
+    #                                                                         #
+    # ======================================================================= #
     @property
     def state(self):
         """ Compute and return the device state.
@@ -134,7 +139,8 @@ class FireTV:
         if not self._awake:
             return STATE_IDLE
         # Check if the launcher is active.
-        if self._launcher or self._settings:
+        current_app = self.current_app
+        if current_app is not None and current_app['package'] in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
             return STATE_STANDBY
         # Check for a wake lock (device is playing).
         if self._wake_lock:
@@ -142,10 +148,66 @@ class FireTV:
         # Otherwise, device is paused.
         return STATE_PAUSED
 
+    @property
+    def _screen_on(self):
+        """ Check if the screen is on. """
+        return self._dump_has('power', 'Display Power', 'state=ON')
+
+    @property
+    def _awake(self):
+        """ Check if the device is awake (screen saver is not running). """
+        return self._dump_has('power', 'mWakefulness', 'Awake')
+
+    @property
+    def _wake_lock(self):
+        """ Check for wake locks (device is playing). """
+        return not self._dump_has('power', 'Locks', 'size=0')
+
+    @property
+    def _launcher(self):
+        """ Check if the active application is the Amazon TV launcher. """
+        current_app = self.current_app
+        if current_app is None:
+            return False
+        else:
+            return current_app["package"] == PACKAGE_LAUNCHER
+
+    @property
+    def _settings(self):
+        """ Check if the active application is the Amazon menu. """
+        current_app = self.current_app
+        if current_app is None:
+            return False
+        else:
+            return current_app["package"] == PACKAGE_SETTINGS
+
+    @property
     def running_apps(self):
         """ Return an array of running user applications """
         return self._ps('u0_a')
 
+    @property
+    def current_app(self):
+        current_focus = self._dump("window windows", "mCurrentFocus").replace("\r", "")
+        if current_focus is None:
+            return None
+
+        # logging.error("Current: %s", current_focus)
+        # mCurrentFocus = Window{299091cd u0 com.netflix.ninja / com.netflix.ninja.MainActivity}
+
+        matches = WINDOW_REGEX.search(current_focus)
+        if matches:
+            (pkg, activity) = matches.group('package', 'activity')
+            return {"package": pkg, "activity": activity}
+        else:
+            logging.warning("Couldn't get current app, reply was %s", current_focus)
+            return None
+
+    # ======================================================================= #
+    #                                                                         #
+    #                                  Apps                                   #
+    #                                                                         #
+    # ======================================================================= #
     def app_state(self, app):
         """ Informs if application is running """
         if self.state == STATE_OFF or self.state == STATE_DISCONNECTED:
@@ -154,15 +216,118 @@ class FireTV:
             return STATE_ON
         return STATE_OFF
 
+    def launch_app(self, app):
+        if not self._adb:
+            return None
+
+        return self._send_intent(app, INTENT_LAUNCH)
+
+    def stop_app(self, app):
+        if not self._adb:
+            return None
+
+        return self._send_intent(PACKAGE_LAUNCHER, INTENT_HOME)
+
+    # ======================================================================= #
+    #                                                                         #
+    #                               ADB commands                              #
+    #                                                                         #
+    # ======================================================================= #
+    def _send_intent(self, pkg, intent, count=1):
+        if not self._adb:
+            return None
+
+        cmd = 'monkey -p {} -c {} {}; echo $?'.format(pkg, intent, count)
+        logging.debug("Sending an intent %s to %s (count: %s)", intent, pkg, count)
+
+        # adb shell outputs in weird format, so we cut it into lines,
+        # separate the retcode and return info to the user
+        res = self._adb.Shell(cmd).strip().split("\r\n")
+        retcode = res[-1]
+        output = "\n".join(res[:-1])
+
+        return {"retcode": retcode, "output": output}
+
+    def _input(self, cmd):
+        """ Send input to the device.
+
+        :param cmd: Input command.
+        """
+        if not self._adb:
+            return
+        self._adb.Shell('input {0}'.format(cmd))
+
+    def _dump(self, service, grep=None):
+        """ Perform a service dump.
+
+        :param service: Service to dump.
+        :param grep: Grep for this string.
+        :returns: Dump, optionally grepped.
+        """
+        if not self._adb:
+            return
+        if grep:
+            return self._adb.Shell('dumpsys {0} | grep "{1}"'.format(service, grep))
+        return self._adb.Shell('dumpsys {0}'.format(service))
+
+    def _dump_has(self, service, grep, search):
+        """ Check if a dump has particular content.
+
+        :param service: Service to dump.
+        :param grep: Grep for this string.
+        :param search: Check for this substring.
+        :returns: Found or not.
+        """
+        return self._dump(service, grep=grep).strip().find(search) > -1
+
+    def _ps(self, search=''):
+        """ Perform a ps command with optional filtering.
+
+        :param search: Check for this substring.
+        :returns: List of matching fields
+        """
+        if not self._adb:
+            return
+        result = []
+        ps = self._adb.StreamingShell('ps')
+        try:
+            for bad_line in ps:
+                # The splitting of the StreamingShell doesn't always work
+                # this is to ensure that we get only one line
+                for line in bad_line.splitlines():
+                    if search in line:
+                        result.append(line.strip().rsplit(' ', 1)[-1])
+            return result
+        except InvalidChecksumError as e:
+            print(e)
+            self.connect()
+            raise IOError
+
+    # ======================================================================= #
+    #                                                                         #
+    #                                  Keys                                   #
+    #                                                                         #
+    # ======================================================================= #
+    def _key(self, key):
+        """ Send a key event to device.
+
+        :param key: Key constant.
+        """
+        self._input('keyevent {0}'.format(key))
+
+    def power(self):
+        """ Send power action. """
+        self._key(POWER)
+
     def turn_on(self):
         """ Send power action if device is off. """
         if self.state == STATE_OFF:
-            self._power()
+            self.power()
 
     def turn_off(self):
         """ Send power action if device is not off. """
         if self.state != STATE_OFF:
-            self._power()
+            self.power()
 
     def home(self):
         """ Send home action. """
@@ -371,136 +536,3 @@ class FireTV:
     def key_z(self):
         """ Send z keypress. """
         self._key(KEY_Z)
-
-    def _send_intent(self, pkg, intent, count=1):
-        if not self._adb:
-            return None
-
-        cmd = 'monkey -p {} -c {} {}; echo $?'.format(pkg, intent, count)
-        logging.debug("Sending an intent %s to %s (count: %s)", intent, pkg, count)
-
-        # adb shell outputs in weird format, so we cut it into lines,
-        # separate the retcode and return info to the user
-        res = self._adb.Shell(cmd).strip().split("\r\n")
-        retcode = res[-1]
-        output = "\n".join(res[:-1])
-
-        return {"retcode": retcode, "output": output}
-
-    def launch_app(self, app):
-        if not self._adb:
-            return None
-
-        return self._send_intent(app, INTENT_LAUNCH)
-
-    def stop_app(self, app):
-        if not self._adb:
-            return None
-
-        return self._send_intent(PACKAGE_LAUNCHER, INTENT_HOME)
-
-    @property
-    def current_app(self):
-        current_focus = self._dump("window windows", "mCurrentFocus").replace("\r", "")
-
-        # logging.error("Current: %s", current_focus)
-        # mCurrentFocus = Window{299091cd u0 com.netflix.ninja / com.netflix.ninja.MainActivity}
-
-        matches = WINDOW_REGEX.search(current_focus)
-        if matches:
-            (pkg, activity) = matches.group('package', 'activity')
-            return {"package": pkg, "activity": activity}
-        else:
-            logging.warning("Couldn't get current app, reply was %s", current_focus)
-            return None
-
-    @property
-    def _screen_on(self):
-        """ Check if the screen is on. """
-        return self._dump_has('power', 'Display Power', 'state=ON')
-
-    @property
-    def _awake(self):
-        """ Check if the device is awake (screen saver is not running). """
-        return self._dump_has('power', 'mWakefulness', 'Awake')
-
-    @property
-    def _wake_lock(self):
-        """ Check for wake locks (device is playing). """
-        return not self._dump_has('power', 'Locks', 'size=0')
-
-    @property
-    def _launcher(self):
-        """ Check if the active application is the Amazon TV launcher. """
-        return self.current_app["package"] == PACKAGE_LAUNCHER
-
-    @property
-    def _settings(self):
-        """ Check if the active application is the Amazon menu. """
-        return self.current_app["package"] == PACKAGE_SETTINGS
-
-    def _power(self):
-        """ Send power action. """
-        self._key(POWER)
-
-    def _input(self, cmd):
-        """ Send input to the device.
-
-        :param cmd: Input command.
-        """
-        if not self._adb:
-            return
-        self._adb.Shell('input {0}'.format(cmd))
-
-    def _key(self, key):
-        """ Send a key event to device.
-
-        :param key: Key constant.
-        """
-        self._input('keyevent {0}'.format(key))
-
-    def _dump(self, service, grep=None):
-        """ Perform a service dump.
-
-        :param service: Service to dump.
-        :param grep: Grep for this string.
-        :returns: Dump, optionally grepped.
-        """
-        if not self._adb:
-            return
-        if grep:
-            return self._adb.Shell('dumpsys {0} | grep "{1}"'.format(service, grep))
-        return self._adb.Shell('dumpsys {0}'.format(service))
-
-    def _dump_has(self, service, grep, search):
-        """ Check if a dump has particular content.
-
-        :param service: Service to dump.
-        :param grep: Grep for this string.
-        :param search: Check for this substring.
-        :returns: Found or not.
-        """
-        return self._dump(service, grep=grep).strip().find(search) > -1
-
-    def _ps(self, search=''):
-        """ Perform a ps command with optional filtering.
-
-        :param search: Check for this substring.
-        :returns: List of matching fields
-        """
-        if not self._adb:
-            return
-        result = []
-        ps = self._adb.StreamingShell('ps')
-        try:
-            for bad_line in ps:
-                # The splitting of the StreamingShell doesn't always work
-                # this is to ensure that we get only one line
-                for line in bad_line.splitlines():
-                    if search in line:
-                        result.append(line.strip().rsplit(' ', 1)[-1])
-            return result
-        except InvalidChecksumError as e:
-            print(e)
-            self.connect()
-            raise IOError
