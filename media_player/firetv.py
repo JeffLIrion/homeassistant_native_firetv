@@ -99,50 +99,54 @@ class FireTVDevice(MediaPlayerDevice):
 
     def update(self):
         """Get the latest date and update device state."""
-        # Check if device is disconnected.
-        if not self._firetv._adb:
-            self._state = STATE_UNKNOWN
-            self._running_apps = None
-            self._current_app = None
+        try:
+            # Check if device is disconnected.
+            if not self._firetv._adb:
+                self._state = STATE_UNKNOWN
+                self._running_apps = None
+                self._current_app = None
 
-            # Try to connect
-            self._firetv.connect()
+                # Try to connect
+                self._firetv.connect()
 
-        # Check if device is off.
-        elif not self._firetv._screen_on:
-            self._state = STATE_OFF
-            self._running_apps = None
-            self._current_app = None
+            # Check if device is off.
+            elif not self._firetv._screen_on:
+                self._state = STATE_OFF
+                self._running_apps = None
+                self._current_app = None
 
-        # Check if screen saver is on.
-        elif not self._firetv._awake:
-            self._state = STATE_IDLE
-            self._running_apps = None
-            self._current_app = None
+            # Check if screen saver is on.
+            elif not self._firetv._awake:
+                self._state = STATE_IDLE
+                self._running_apps = None
+                self._current_app = None
 
-        else:
-            # Get the running apps.
-            self._running_apps = self._firetv.running_apps
-
-            # Get the current app.
-            current_app = self._firetv.current_app
-            _LOGGER.info('current_app = {0} ({1})'.format(current_app, type(current_app)))
-            if isinstance(current_app, dict) and 'package' in current_app:
-                self._current_app = current_app['package']
             else:
-                self._current_app = current_app
+                # Get the running apps.
+                self._running_apps = self._firetv.running_apps
 
-            # Check if the launcher is active.
-            if self._current_app in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
-                self._state = STATE_STANDBY
+                # Get the current app.
+                current_app = self._firetv.current_app
+                if isinstance(current_app, dict) and 'package' in current_app:
+                    self._current_app = current_app['package']
+                else:
+                    self._current_app = current_app
 
-            # Check for a wake lock (device is playing).
-            elif self._firetv._wake_lock:
-                self._state = STATE_PLAYING
+                # Check if the launcher is active.
+                if self._current_app in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
+                    self._state = STATE_STANDBY
 
-            # Otherwise, device is paused.
-            else:
-                self._state = STATE_PAUSED
+                # Check for a wake lock (device is playing).
+                elif self._firetv._wake_lock:
+                    self._state = STATE_PLAYING
+
+                # Otherwise, device is paused.
+                else:
+                    self._state = STATE_PAUSED
+
+        except:
+            _LOGGER.critical('Update encountered an exception; will attempt to re-establish the ADB connection in the next update.')
+            self._adb = None
 
     def turn_on(self):
         """Turn on the device."""
