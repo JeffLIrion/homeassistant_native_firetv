@@ -27,10 +27,7 @@ media_player:
 
 ## Current status / known issues
 
-I have two Fire TV sticks, one that requires authentication and one that does not.
-
-* The Fire TV without authentication seems to be working correctly for me.
-* The Fire TV that requires authentication shows up in Home Assistant when I use M2Crypto, but not when I use pycryptodome.  I'm able to use M2Crypto on my Home Assistant installation in a virtual environment on my laptop, but not in Hass.io on my Raspberry Pi.
+Currently, it seems to be working for me!  I'm able to connect to my Fire TV stick that doesn't have authentication *and* my Fire TV stick that does have it.
 
 
 ## Acknowledgments
