@@ -16,7 +16,9 @@ from homeassistant.const import (
     STATE_UNKNOWN, CONF_HOST, CONF_NAME)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2']
+REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2',
+                'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.5',
+                'https://github.com/JeffLIrion/python-adb/zipball/master#adb==1.3.0']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +62,7 @@ class FireTVDevice(MediaPlayerDevice):
 
     def __init__(self, host, name, adbkey):
         """Initialize the FireTV device."""
-        from custom_components.python_firetv import FireTV
+        from firetv import FireTV
         self._firetv = FireTV(host, adbkey)
         self._name = name
         self._state = STATE_UNKNOWN
@@ -123,7 +125,7 @@ class FireTVDevice(MediaPlayerDevice):
 
             else:
                 # Get the running apps.
-                self._running_apps = self._firetv.running_apps
+                self._running_apps = self._firetv.running_apps()
 
                 # Get the current app.
                 current_app = self._firetv.current_app

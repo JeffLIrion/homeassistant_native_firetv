@@ -7,7 +7,7 @@ No Python 2 service necessary!  And it can also handle device authentication.
 
 ## Installation
 
-Copy the `adb` folder and the files `python_firetv.py` and `media_player/firetv.py` to your `custom_components` folder.
+Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_components/media_player/firetv.py`).
 
 
 ## Configuration
@@ -32,4 +32,4 @@ Currently, it seems to be working for me!  I'm able to connect to my Fire TV sti
 
 ## Acknowledgments
 
-This is based on [python-firetv](https://github.com/happyleavesaoc/python-firetv) by happyleavesaoc.  I've also included [python-adb](https://github.com/google/python-adb), with some modifications made for compatibility.
+This is based on [python-firetv](https://github.com/happyleavesaoc/python-firetv) by happyleavesaoc, and it depends on [python-adb](https://github.com/google/python-adb).
