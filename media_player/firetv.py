@@ -29,12 +29,11 @@ SUPPORT_FIRETV = SUPPORT_PAUSE | \
 
 CONF_ADBKEY = 'adbkey'
 
-DEFAULT_HOST = 'localhost'
 DEFAULT_NAME = 'Amazon Fire TV'
 DEFAULT_ADBKEY = ''
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
-    vol.Optional(CONF_HOST, default=DEFAULT_HOST): cv.string,
+    vol.Required(CONF_HOST): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_ADBKEY, default=DEFAULT_ADBKEY): cv.string
 })
