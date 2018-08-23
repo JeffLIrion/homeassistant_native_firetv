@@ -18,7 +18,7 @@ from homeassistant.const import (
     STATE_UNKNOWN, CONF_HOST, CONF_NAME)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2',
+REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2', 'pycryptodome==3.6.6',
                 'https://github.com/JeffLIrion/python-adb/zipball/master#adb==1.3.0.dev',
                 'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.5.dev']
 
