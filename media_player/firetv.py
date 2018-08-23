@@ -4,7 +4,9 @@ Support for functionality to interact with FireTV devices.
 For more details about this platform, please refer to the documentation at
 https://home-assistant.io/components/media_player.firetv/
 """
+import functools
 import logging
+import time
 import voluptuous as vol
 
 from homeassistant.components.media_player import (
@@ -56,13 +58,38 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         add_devices([device])
 
 
+def adb_wrapper(func):
+    """A wrapper that will wait if previous ADB commands haven't finished."""
+    @functools.wraps(func)
+    def _adb_wrapper(self, *args, **kwargs):
+        attempts = 0
+        while self._adb_lock and attempts < 5:
+            attempts += 1
+            time.sleep(1)
+
+        if attempts == 5 and self._adb_lock:
+            self._firetv.connect()
+
+        self._adb_lock = True
+        returns = func(self, *args, **kwargs)
+        self._adb_lock = False
+
+        if returns:
+            return returns
+
+    return _adb_wrapper
+
+
 class FireTVDevice(MediaPlayerDevice):
     """Representation of an Amazon Fire TV device on the network."""
 
     def __init__(self, host, name, adbkey):
         """Initialize the FireTV device."""
         from firetv import FireTV
+        self._host = host
+        self._adbkey = adbkey
         self._firetv = FireTV(host, adbkey)
+        self._adb_lock = False
         self._name = name
         self._state = STATE_UNKNOWN
         self._running_apps = None
@@ -98,6 +125,7 @@ class FireTVDevice(MediaPlayerDevice):
         """Return a list of running apps."""
         return self._running_apps
 
+    @adb_wrapper
     def update(self):
         """Get the latest date and update device state."""
         try:
@@ -146,49 +174,62 @@ class FireTVDevice(MediaPlayerDevice):
                     self._state = STATE_PAUSED
 
         except:
-            _LOGGER.critical('Update encountered an exception; will attempt to re-establish the ADB connection in the next update.')
-            self._adb = None
+            _LOGGER.critical('Update encountered an exception; will attempt ' +
+                             'to re-establish the ADB connection in the ' +
+                             'next update.')
+            self._firetv._adb = None
 
+    @adb_wrapper
     def turn_on(self):
         """Turn on the device."""
         self._firetv.turn_on()
 
+    @adb_wrapper
     def turn_off(self):
         """Turn off the device."""
         self._firetv.turn_off()
 
+    @adb_wrapper
     def media_play(self):
         """Send play command."""
         self._firetv.media_play()
 
+    @adb_wrapper
     def media_pause(self):
         """Send pause command."""
         self._firetv.media_pause()
 
+    @adb_wrapper
     def media_play_pause(self):
         """Send play/pause command."""
         self._firetv.media_play_pause()
 
+    @adb_wrapper
     def media_stop(self):
         """Send stop (back) command."""
         self._firetv.back()
 
+    @adb_wrapper
     def volume_up(self):
         """Send volume up command."""
         self._firetv.volume_up()
 
+    @adb_wrapper
     def volume_down(self):
         """Send volume down command."""
         self._firetv.volume_down()
 
+    @adb_wrapper
     def media_previous_track(self):
         """Send previous track command (results in rewind)."""
         self._firetv.media_previous()
 
+    @adb_wrapper
     def media_next_track(self):
         """Send next track command (results in fast-forward)."""
         self._firetv.media_next()
 
+    @adb_wrapper
     def select_source(self, source):
         """Select input source."""
         if isinstance(source, str):
