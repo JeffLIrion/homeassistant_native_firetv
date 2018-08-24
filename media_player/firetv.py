@@ -174,9 +174,8 @@ class FireTVDevice(MediaPlayerDevice):
                     self._state = STATE_PAUSED
 
         except:
-            _LOGGER.critical('Update encountered an exception; will attempt ' +
-                             'to re-establish the ADB connection in the ' +
-                             'next update.')
+            _LOGGER.error('Update encountered an exception; will attempt to ' +
+                          're-establish the ADB connection in the next update')
             self._firetv._adb = None
 
     @adb_wrapper
