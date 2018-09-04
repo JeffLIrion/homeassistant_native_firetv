@@ -33,18 +33,19 @@ To add FireTV to your installation, Note your device name, and add the following
 media_player:
   - platform: firetv
     name: Fire TV 1
-    host: "192.168.0.111:5555"
+    host: 192.168.0.111
 
   - platform: firetv
     name: Fire TV 2
-    host: "192.168.0.222:5555"
+    host: 192.168.0.222
     adbkey: "/config/android/adbkey"
 ```
 
 Configuration variables:
 
-- **host** (*Required*): The IP address and port for your Fire TV device.  The standard port for ADB on a Fire TV is 5555.
-- **name** (*Optional*): The friendly name of the device, default is 'Amazon Fire TV'.
+- **host** (*Required*): The IP address your Fire TV device.  
+- **name** (*Optional*): The friendly name of the device; the default is 'Amazon Fire TV'.
+- **port** (*Optional*): The port for your Fire TV device; the default is 5555.
 - **adbkey** (*Optional*): The path to your `adbkey` file.  Note that the file `adbkey.pub` must be in the same directory.  
 
 ### {% linkable_title ADB Authentication (for Fire TV devices with recent software) %}

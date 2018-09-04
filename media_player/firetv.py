@@ -15,7 +15,7 @@ from homeassistant.components.media_player import (
     SUPPORT_VOLUME_SET, SUPPORT_PLAY, MediaPlayerDevice)
 from homeassistant.const import (
     STATE_IDLE, STATE_OFF, STATE_PAUSED, STATE_PLAYING, STATE_STANDBY,
-    STATE_UNKNOWN, CONF_HOST, CONF_NAME)
+    STATE_UNKNOWN, CONF_HOST, CONF_NAME, CONF_PORT)
 import homeassistant.helpers.config_validation as cv
 
 REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2', 'pycryptodome==3.6.6',
@@ -32,11 +32,13 @@ SUPPORT_FIRETV = SUPPORT_PAUSE | \
 CONF_ADBKEY = 'adbkey'
 
 DEFAULT_NAME = 'Amazon Fire TV'
+DEFAULT_PORT = 5555
 DEFAULT_ADBKEY = ''
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
+    vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
     vol.Optional(CONF_ADBKEY, default=DEFAULT_ADBKEY): cv.string
 })
 
@@ -46,7 +48,7 @@ PACKAGE_SETTINGS = "com.amazon.tv.settings"
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
     """Set up the FireTV platform."""
-    host = config.get(CONF_HOST)
+    host = '{0}:{1}'.format(config.get(CONF_HOST), config.get(CONF_PORT))
     name = config.get(CONF_NAME)
     adbkey = config.get(CONF_ADBKEY)
 

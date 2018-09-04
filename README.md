@@ -16,11 +16,11 @@ Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_co
 media_player:
   - platform: firetv
     name: Fire TV 1
-    host: "192.168.0.111:5555"
+    host: 192.168.0.111
 
   - platform: firetv
     name: Fire TV 2
-    host: "192.168.0.222:5555"
+    host: 192.168.0.222
     adbkey: "/config/android/adbkey"
 ```
 
