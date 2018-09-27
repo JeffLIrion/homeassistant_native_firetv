@@ -20,7 +20,7 @@ import homeassistant.helpers.config_validation as cv
 
 REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2', 'pycryptodome==3.6.6',
                 'https://github.com/JeffLIrion/python-adb/zipball/master#adb==1.3.0.1',
-                'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.5.1']
+                'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.5.2']
 
 _LOGGER = logging.getLogger(__name__)
 
