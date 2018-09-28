@@ -2,26 +2,33 @@
 
 No Python 2 service necessary!  And it can also handle device authentication.
 
-**This is a work in progress!**
-
 
 ## Installation
 
-Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_components/media_player/firetv.py`).
+Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_components/media_player/firetv.py`) in your configuration directory.  If you do not have a `custom_components` folder, then you will need to create it.  
 
 
 ## Configuration
 
 ```yaml
+# Example configuration.yaml entry
 media_player:
+  # a device that does not require ADB authentication
   - platform: firetv
     name: Fire TV 1
     host: 192.168.0.111
 
+  # a device that does require ADB authentication
   - platform: firetv
     name: Fire TV 2
     host: 192.168.0.222
     adbkey: "/config/android/adbkey"
+
+  # a device for which getting the running apps causes issues
+  - platform: firetv
+    name: Fire TV 3
+    host: 192.168.0.222
+    get_sources: false
 ```
 
 

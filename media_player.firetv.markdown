@@ -31,14 +31,22 @@ To add FireTV to your installation, Note your device name, and add the following
 ```yaml
 # Example configuration.yaml entry
 media_player:
+  # a device that does not require ADB authentication
   - platform: firetv
     name: Fire TV 1
     host: 192.168.0.111
 
+  # a device that does require ADB authentication
   - platform: firetv
     name: Fire TV 2
     host: 192.168.0.222
     adbkey: "/config/android/adbkey"
+
+  # a device for which getting the running apps causes issues
+  - platform: firetv
+    name: Fire TV 3
+    host: 192.168.0.222
+    get_sources: false
 ```
 
 Configuration variables:
@@ -47,6 +55,7 @@ Configuration variables:
 - **name** (*Optional*): The friendly name of the device; the default is 'Amazon Fire TV'.
 - **port** (*Optional*): The port for your Fire TV device; the default is 5555.
 - **adbkey** (*Optional*): The path to your `adbkey` file.  Note that the file `adbkey.pub` must be in the same directory.  
+- **get_sources** (*Optional*): Whether or not to retrieve the running apps as the list of sources; the default is `true`.
 
 ### {% linkable_title ADB Authentication (for Fire TV devices with recent software) %}
 
