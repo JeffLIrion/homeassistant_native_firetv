@@ -45,7 +45,7 @@ media_player:
   # a device for which getting the running apps causes issues
   - platform: firetv
     name: Fire TV 3
-    host: 192.168.0.222
+    host: 192.168.0.123
     get_sources: false
 ```
 
