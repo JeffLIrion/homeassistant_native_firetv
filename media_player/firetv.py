@@ -153,6 +153,10 @@ class FireTVDevice(MediaPlayerDevice):
                 self._current_app = None
 
             else:
+                # Get the running apps.
+                ps = self._firetv._adb.StreamingShell('ps | grep u0_a')
+                self._running_apps = [line.strip().rsplit(' ', 1)[-1] for p in ps for line in p.splitlines()]
+
                 # Get the current app.
                 current_app = self._firetv.current_app
                 if isinstance(current_app, dict) and 'package' in current_app:
@@ -171,9 +175,6 @@ class FireTVDevice(MediaPlayerDevice):
                 # Otherwise, device is paused.
                 else:
                     self._state = STATE_PAUSED
-
-                # Get the running apps.
-                self._running_apps = self._firetv.running_apps()
 
         except:
             _LOGGER.error('Update encountered an exception; will attempt to ' +
