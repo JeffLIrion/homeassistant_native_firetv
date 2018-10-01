@@ -2,12 +2,10 @@
 
 No Python 2 service necessary!  And it can also handle device authentication.
 
-**This is a work in progress!**
-
 
 ## Installation
 
-Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_components/media_player/firetv.py`).
+Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_components/media_player/firetv.py`) in your configuration directory.  If you do not have a `custom_components` folder, then you will need to create it.  
 
 
 ## Configuration
