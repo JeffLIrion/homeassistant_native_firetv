@@ -53,10 +53,11 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     adbkey = config.get(CONF_ADBKEY)
 
     device = FireTVDevice(host, name, adbkey)
+    adb_log = " using adbkey='{0}'".format(adbkey) if adbkey else ""
     if not device._firetv._adb:
-        _LOGGER.warning("Could not connect to Fire TV at {0}".format(host))
+        _LOGGER.warning("Could not connect to Fire TV at %s%s", host, adb_log)
     else:
-        _LOGGER.info('Setup Fire TV at {0}'.format(host))
+        _LOGGER.info("Setup Fire TV at %s%s", host, adb_log)
         add_devices([device])
 
 
