@@ -24,10 +24,11 @@ media_player:
     host: 192.168.0.222
     adbkey: "/config/android/adbkey"
 
-  # a device for which getting the running apps causes issues
+  # a device for which getting the current app (source) and the running apps (sources) cause issues
   - platform: firetv
     name: Fire TV 3
     host: 192.168.0.123
+    get_source: false
     get_sources: false
 ```
 
