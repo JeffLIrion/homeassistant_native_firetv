@@ -6,6 +6,7 @@ https://home-assistant.io/components/media_player.firetv/
 """
 import functools
 import logging
+import os
 import time
 import voluptuous as vol
 
@@ -52,16 +53,27 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     name = config.get(CONF_NAME)
     adbkey = config.get(CONF_ADBKEY)
     
-    if adbkey != "":
-        if not os.path.exists(adbkey):
-            raise FileNotFoundError("No ADB private key exists at the specified adbkey path")
-        if not os.path.exists(adbkey + ".pub"):
-            raise FileNotFoundError("No ADB public key exists at the specified adbkey path. The public key must have the same name as the prviate key, appended with .pub")
-
     device = FireTVDevice(host, name, adbkey)
     adb_log = " using adbkey='{0}'".format(adbkey) if adbkey else ""
     if not device._firetv._adb:
         _LOGGER.warning("Could not connect to Fire TV at %s%s", host, adb_log)
+
+        # Debugging
+        if adbkey != "":
+            # Check whether the key files exist
+            if not os.path.exists(adbkey):
+                raise FileNotFoundError("ADB private key %s does not exist",
+                                        adbkey)
+            if not os.path.exists(adbkey + ".pub"):
+                raise FileNotFoundError("ADB public key %s does not exist",
+                                        adbkey + '.pub')
+
+            # Check whether the key files can be read
+            with open(adbkey) as _:
+                pass
+            with open(adbkey + '.pub') as _:
+                pass
+
     else:
         _LOGGER.info("Setup Fire TV at %s%s", host, adb_log)
         add_devices([device])
