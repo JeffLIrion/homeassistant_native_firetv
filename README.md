@@ -11,15 +11,25 @@ Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_co
 ## Configuration
 
 ```yaml
+# Example configuration.yaml entry
 media_player:
+  # a device that does not require ADB authentication
   - platform: firetv
     name: Fire TV 1
     host: 192.168.0.111
 
+  # a device that does require ADB authentication
   - platform: firetv
     name: Fire TV 2
     host: 192.168.0.222
     adbkey: "/config/android/adbkey"
+
+  # a device for which getting the current app (source) and the running apps (sources) cause issues
+  - platform: firetv
+    name: Fire TV 3
+    host: 192.168.0.123
+    get_source: false
+    get_sources: false
 ```
 
 
