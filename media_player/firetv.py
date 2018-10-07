@@ -51,6 +51,12 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     host = '{0}:{1}'.format(config.get(CONF_HOST), config.get(CONF_PORT))
     name = config.get(CONF_NAME)
     adbkey = config.get(CONF_ADBKEY)
+    
+    if adbkey != "":
+        if not os.path.exists(adbkey):
+            raise FileNotFoundError("No ADB private key exists at the specified adbkey path")
+        if not os.path.exists(adbkey + ".pub"):
+            raise FileNotFoundError("No ADB public key exists at the specified adbkey path. The public key must have the same name as the prviate key, appended with .pub")
 
     device = FireTVDevice(host, name, adbkey)
     adb_log = " using adbkey='{0}'".format(adbkey) if adbkey else ""
