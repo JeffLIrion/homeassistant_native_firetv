@@ -6,6 +6,7 @@ https://home-assistant.io/components/media_player.firetv/
 """
 import functools
 import logging
+import os
 import time
 import voluptuous as vol
 
@@ -18,7 +19,7 @@ from homeassistant.const import (
     STATE_UNKNOWN, CONF_HOST, CONF_NAME, CONF_PORT)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['libusb1==1.6.6', 'rsa==3.4.2', 'pycryptodome==3.6.6',
+REQUIREMENTS = ['libusb1>=1.6.6', 'rsa>=3.4.2', 'pycryptodome>=3.6.6',
                 'https://github.com/JeffLIrion/python-adb/zipball/version_bump#adb==1.3.0.1',
                 'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.5.2']
 
@@ -64,6 +65,23 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
     adb_log = " using adbkey='{0}'".format(adbkey) if adbkey else ""
     if not device._firetv._adb:
         _LOGGER.warning("Could not connect to Fire TV at %s%s", host, adb_log)
+
+        # Debugging
+        if adbkey != "":
+            # Check whether the key files exist
+            if not os.path.exists(adbkey):
+                raise FileNotFoundError("ADB private key %s does not exist",
+                                        adbkey)
+            if not os.path.exists(adbkey + ".pub"):
+                raise FileNotFoundError("ADB public key %s does not exist",
+                                        adbkey + '.pub')
+
+            # Check whether the key files can be read
+            with open(adbkey) as _:
+                pass
+            with open(adbkey + '.pub') as _:
+                pass
+
     else:
         _LOGGER.info("Setup Fire TV at %s%s", host, adb_log)
         add_devices([device])
