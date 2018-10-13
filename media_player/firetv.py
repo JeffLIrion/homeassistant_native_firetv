@@ -70,11 +70,11 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
         if adbkey != "":
             # Check whether the key files exist
             if not os.path.exists(adbkey):
-                raise FileNotFoundError("ADB private key %s does not exist",
-                                        adbkey)
+                raise FileNotFoundError(
+                    "ADB private key {0} does not exist".format(adbkey))
             if not os.path.exists(adbkey + ".pub"):
-                raise FileNotFoundError("ADB public key %s does not exist",
-                                        adbkey + '.pub')
+                raise FileNotFoundError(
+                    "ADB public key {0} does not exist".format(adbkey + '.pub'))
 
             # Check whether the key files can be read
             with open(adbkey) as _:
