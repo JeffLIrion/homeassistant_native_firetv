@@ -32,6 +32,15 @@ media_player:
     get_sources: false
 ```
 
+Configuration variables:
+
+- **host** (*Required*): The IP address your Fire TV device.  
+- **name** (*Optional*): The friendly name of the device; the default is 'Amazon Fire TV'.
+- **port** (*Optional*): The port for your Fire TV device; the default is 5555.
+- **adbkey** (*Optional*): The path to your `adbkey` file.  Note that the file `adbkey.pub` must be in the same directory.  
+- **get_source** (*Optional*): Whether or not to retrieve the current app as the source; the default is `true`.
+- **get_sources** (*Optional*): Whether or not to retrieve the running apps as the list of sources; the default is `true`.
+
 
 ## ADB Authentication (for Fire TV devices with recent software)
 
