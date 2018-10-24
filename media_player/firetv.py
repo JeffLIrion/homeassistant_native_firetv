@@ -71,10 +71,10 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
             # Check whether the key files exist
             if not os.path.exists(adbkey):
                 raise FileNotFoundError(
-                    "ADB private key {0} does not exist".format(adbkey))
+                    "ADB private key {} does not exist".format(adbkey))
             if not os.path.exists(adbkey + ".pub"):
                 raise FileNotFoundError(
-                    "ADB public key {0} does not exist".format(adbkey + '.pub'))
+                    "ADB public key {} does not exist".format(adbkey + '.pub'))
 
             # Check whether the key files can be read
             with open(adbkey) as _:
@@ -189,7 +189,8 @@ class FireTVDevice(MediaPlayerDevice):
                 # Get the current app.
                 if self._get_source:
                     current_app = self._firetv.current_app
-                    if isinstance(current_app, dict) and 'package' in current_app:
+                    if isinstance(current_app, dict)\
+                            and 'package' in current_app:
                         self._current_app = current_app['package']
                     else:
                         self._current_app = current_app
@@ -202,7 +203,8 @@ class FireTVDevice(MediaPlayerDevice):
                             self._running_apps = None
 
                     # Check if the launcher is active.
-                    if self._current_app in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
+                    if self._current_app in [PACKAGE_LAUNCHER,
+                                             PACKAGE_SETTINGS]:
                         self._state = STATE_STANDBY
 
                     # Check for a wake lock (device is playing).
