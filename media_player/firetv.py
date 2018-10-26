@@ -21,7 +21,7 @@ import homeassistant.helpers.config_validation as cv
 
 REQUIREMENTS = ['libusb1>=1.6.6', 'rsa>=3.4.2', 'pycryptodome>=3.6.6',
                 'https://github.com/JeffLIrion/python-adb/zipball/version_bump#adb==1.3.0.1',
-                'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.5.2']
+                'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.5.3']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,9 +77,9 @@ def setup_platform(hass, config, add_devices, discovery_info=None):
                     "ADB public key {} does not exist".format(adbkey + '.pub'))
 
             # Check whether the key files can be read
-            with open(adbkey) as _:
+            with open(adbkey):
                 pass
-            with open(adbkey + '.pub') as _:
+            with open(adbkey + '.pub'):
                 pass
 
     else:
