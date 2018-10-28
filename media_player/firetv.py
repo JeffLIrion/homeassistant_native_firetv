@@ -19,8 +19,7 @@ from homeassistant.const import (
     STATE_UNKNOWN, CONF_HOST, CONF_NAME, CONF_PORT)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['adb-homeassistant',
-                'https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.6']
+REQUIREMENTS = ['https://github.com/JeffLIrion/python-firetv/zipball/master#firetv==1.0.6']
 
 _LOGGER = logging.getLogger(__name__)
 
