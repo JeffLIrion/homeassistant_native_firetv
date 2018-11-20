@@ -79,6 +79,11 @@ get_sources:
   required: false
   default: true
   type: boolean
+set_states:
+  description: Whether or not to set the state when turning the device on/off and when selecting a source.
+  required: false
+  default: true
+  type: boolean
 {% endconfiguration %}
 
 ### {% linkable_title ADB Authentication (for Fire TV devices with recent software) %}

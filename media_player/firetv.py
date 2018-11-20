@@ -30,11 +30,13 @@ SUPPORT_FIRETV = SUPPORT_PAUSE | \
 CONF_ADBKEY = 'adbkey'
 CONF_GET_SOURCE = 'get_source'
 CONF_GET_SOURCES = 'get_sources'
+CONF_SET_STATES = 'set_states'
 
 DEFAULT_NAME = 'Amazon Fire TV'
 DEFAULT_PORT = 5555
 DEFAULT_GET_SOURCE = True
 DEFAULT_GET_SOURCES = True
+DEFAULT_SET_STATES = True
 
 
 def has_adb_files(value):
@@ -51,7 +53,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
     vol.Optional(CONF_ADBKEY): has_adb_files,
     vol.Optional(CONF_GET_SOURCE, default=DEFAULT_GET_SOURCE): cv.boolean,
-    vol.Optional(CONF_GET_SOURCES, default=DEFAULT_GET_SOURCES): cv.boolean
+    vol.Optional(CONF_GET_SOURCES, default=DEFAULT_GET_SOURCES): cv.boolean,
+    vol.Optional(CONF_SET_STATES, default=DEFAULT_SET_STATES): cv.boolean
 })
 
 PACKAGE_LAUNCHER = "com.amazon.tv.launcher"
@@ -78,8 +81,9 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     name = config[CONF_NAME]
     get_source = config[CONF_GET_SOURCE]
     get_sources = config[CONF_GET_SOURCES]
+    set_states = config[CONF_SET_STATES]
 
-    device = FireTVDevice(ftv, name, get_source, get_sources)
+    device = FireTVDevice(ftv, name, get_source, get_sources, set_states)
     add_entities([device])
     _LOGGER.info("Setup Fire TV at %s%s", host, adb_log)
 
@@ -113,7 +117,7 @@ def adb_decorator(override_available=False):
 class FireTVDevice(MediaPlayerDevice):
     """Representation of an Amazon Fire TV device on the network."""
 
-    def __init__(self, ftv, name, get_source, get_sources):
+    def __init__(self, ftv, name, get_source, get_sources, set_states):
         """Initialize the FireTV device."""
         from adb.adb_protocol import (
             InvalidCommandError, InvalidResponseError, InvalidChecksumError)
@@ -123,6 +127,7 @@ class FireTVDevice(MediaPlayerDevice):
         self._name = name
         self._get_source = get_source
         self._get_sources = get_sources
+        self._set_states = set_states
 
         # whether or not the ADB connection is currently in use
         self.adb_lock = threading.Lock()
@@ -246,11 +251,15 @@ class FireTVDevice(MediaPlayerDevice):
     def turn_on(self):
         """Turn on the device."""
         self.firetv.turn_on()
+        if self._set_states:
+            self._state = STATE_IDLE
 
     @adb_decorator()
     def turn_off(self):
         """Turn off the device."""
         self.firetv.turn_off()
+        if self._set_states:
+            self._state = STATE_OFF
 
     @adb_decorator()
     def media_play(self):
@@ -302,5 +311,10 @@ class FireTVDevice(MediaPlayerDevice):
         if isinstance(source, str):
             if not source.startswith('!'):
                 self.firetv.launch_app(source)
+                if self._set_states:
+                    self._current_app = source
             else:
                 self.firetv.stop_app(source[1:].lstrip())
+                if self._set_states:
+                    self._current_app = PACKAGE_LAUNCHER
+                    self._state = STATE_STANDBY
