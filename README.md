@@ -3,9 +3,17 @@
 No Python 2 service necessary!  And it can also handle device authentication.
 
 
+## Differences from standard HA Fire TV component
+
+Home Assistant PR [#17767](https://github.com/home-assistant/home-assistant/pull/17767) implemented much of this capability into the built-in Fire TV component.  This component differs in 2 ways:
+
+1. It uses a blocking `threading.Lock()`, as opposed to a non-blocking lock.  As a result, when using this component commands will not be skipped.
+2. It adds a `set_states` configuration variable (see below).
+
+
 ## Installation
 
-Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_components/media_player/firetv.py`) in your configuration directory.  If you do not have a `custom_components` folder, then you will need to create it.  
+Copy the `media_player/firetv.py` to your `custom_components` folder (`custom_components/media_player/firetv.py`) in your configuration directory.  If you do not have a `custom_components` folder, then you will need to create it.
 
 
 ## Configuration
@@ -34,39 +42,40 @@ media_player:
 
 Configuration variables:
 
-- **host** (*Required*): The IP address your Fire TV device.  
+- **host** (*Required*): The IP address your Fire TV device.
 - **name** (*Optional*): The friendly name of the device; the default is 'Amazon Fire TV'.
 - **port** (*Optional*): The port for your Fire TV device; the default is 5555.
-- **adbkey** (*Optional*): The path to your `adbkey` file.  Note that the file `adbkey.pub` must be in the same directory.  
+- **adbkey** (*Optional*): The path to your `adbkey` file.  Note that the file `adbkey.pub` must be in the same directory.
 - **get_source** (*Optional*): Whether or not to retrieve the current app as the source; the default is `true`.
 - **get_sources** (*Optional*): Whether or not to retrieve the running apps as the list of sources; the default is `true`.
+- **set_states** (*Optional*): Whether or not to set the state when turning the device on/off and when selecting a source; the default is `true`.
 
 
 ## ADB Authentication (for Fire TV devices with recent software)
 
-If you get a "Device authentication required, no keys available" error when trying to setup Fire TV, then you'll need to create an adbkey and add its path to your configuration.  Follow the instructions on this page to connect to your Fire TV from your computer: [Connecting to Fire TV Through adb](https://developer.amazon.com/zh/docs/fire-tv/connecting-adb-to-device.html).  
+If you get a "Device authentication required, no keys available" error when trying to setup Fire TV, then you'll need to create an adbkey and add its path to your configuration.  Follow the instructions on this page to connect to your Fire TV from your computer: [Connecting to Fire TV Through adb](https://developer.amazon.com/zh/docs/fire-tv/connecting-adb-to-device.html).
 
 **Important!**  In the dialog appearing on your Fire TV, you must check the box that says "always allow connections from this device."  ADB authentication in Home Assistant will only work using a trusted key.
 
-Once you've successfully connected to your Fire TV via the command `adb connect <ipaddress>`, the files `adbkey` and `adbkey.pub` will be created on your computer.  Copy these to your Home Assistant folder and add the path to the `adbkey` file to your configuration.  
+Once you've successfully connected to your Fire TV via the command `adb connect <ipaddress>`, the files `adbkey` and `adbkey.pub` will be created on your computer.  Copy these to your Home Assistant folder and add the path to the `adbkey` file to your configuration.
 
 
 ## Troubleshooting
 
 ### Issue: `ModuleNotFoundError: No module named 'firetv'`
 
-**Solution:** Restart Home Assistant.  This error occurs because HA needs some time to install the dependencies, and it tries to setup the component before the dependencies have been installed.  
+**Solution:** Restart Home Assistant.  This error occurs because HA needs some time to install the dependencies, and it tries to setup the component before the dependencies have been installed.
 
 
 ### Issue: Error while setting up platform firetv *(with an ADB key)*
 
-**Solution:** There is probably an issue with your ADB key.  Here are some possibilities.  
+**Solution:** There is probably an issue with your ADB key.  Here are some possibilities.
 
 1. Your key is not pre-authenticated.  Before using the `adbkey` in Home Assistant, you _**must**_ connect to your Fire TV device using the ADB binary and tell the Fire TV to always allow connections from this computer.  For more information, see the section "ADB Authentication (for Fire TV devices with recent software)" above.
 
 2. Home Assistant does not have the appropriate permissions for the `adbkey` file and so it is not able to use it.  Once you fix the permissions, the component should work.
 
-3. You are already connected to the Fire TV via ADB from another device.  Only one device can be connected, so disconnect the other device, restart the Fire TV (for good measure), and then restart Home Assistant.  
+3. You are already connected to the Fire TV via ADB from another device.  Only one device can be connected, so disconnect the other device, restart the Fire TV (for good measure), and then restart Home Assistant.
 
 
 ## Acknowledgments
