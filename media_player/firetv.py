@@ -120,7 +120,7 @@ class FireTVDevice(MediaPlayerDevice):
     def __init__(self, ftv, name, get_source, get_sources, set_states):
         """Initialize the FireTV device."""
         from adb.adb_protocol import (
-            InvalidCommandError, InvalidResponseError, InvalidChecksumError)
+            InvalidChecksumError, InvalidCommandError, InvalidResponseError)
 
         self.firetv = ftv
 
@@ -133,9 +133,9 @@ class FireTVDevice(MediaPlayerDevice):
         self.adb_lock = threading.Lock()
 
         # ADB exceptions to catch
-        self.exceptions = (TypeError, ValueError, AttributeError,
-                           InvalidCommandError, InvalidResponseError,
-                           InvalidChecksumError)
+        self.exceptions = (AttributeError, BrokenPipeError, TypeError,
+                           ValueError, InvalidChecksumError,
+                           InvalidCommandError, InvalidResponseError)
 
         self._state = None
         self._available = self.firetv.available
