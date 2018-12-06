@@ -337,7 +337,7 @@ class FireTVDevice(MediaPlayerDevice):
 
     @property
     @adb_decorator()
-    def firetv_running apps(self):
+    def firetv_running_apps(self):
         """Get the running apps."""
         return self.firetv.running_apps
 
