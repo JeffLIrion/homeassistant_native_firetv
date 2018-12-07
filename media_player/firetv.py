@@ -6,6 +6,8 @@ https://home-assistant.io/components/media_player.firetv/
 """
 import functools
 import logging
+import subprocess
+import sys
 import threading
 import voluptuous as vol
 
@@ -47,6 +49,22 @@ def has_adb_files(value):
     return cv.isfile(priv_key)
 
 
+def ping(ip_address):
+    """Send an ICMP echo request and return True if success."""
+    if sys.platform == 'win32':
+        ping_cmd = ['ping', '-n', '1', '-w', '1000', ip_address]
+    else:
+        ping_cmd = ['ping', '-n', '-q', '-c1', '-W1', ip_address]
+
+    pinger = subprocess.Popen(ping_cmd, stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL)
+    try:
+        pinger.communicate()
+        return pinger.returncode == 0
+    except subprocess.CalledProcessError:
+        return False
+
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Required(CONF_HOST): cv.string,
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
@@ -78,12 +96,13 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         _LOGGER.warning("Could not connect to Fire TV at %s%s", host, adb_log)
         return
 
+    ip = config[CONF_HOST]
     name = config[CONF_NAME]
     get_source = config[CONF_GET_SOURCE]
     get_sources = config[CONF_GET_SOURCES]
     set_states = config[CONF_SET_STATES]
 
-    device = FireTVDevice(ftv, name, get_source, get_sources, set_states)
+    device = FireTVDevice(ftv, ip, name, get_source, get_sources, set_states)
     add_entities([device])
     _LOGGER.info("Setup Fire TV at %s%s", host, adb_log)
 
@@ -117,13 +136,14 @@ def adb_decorator(override_available=False):
 class FireTVDevice(MediaPlayerDevice):
     """Representation of an Amazon Fire TV device on the network."""
 
-    def __init__(self, ftv, name, get_source, get_sources, set_states):
+    def __init__(self, ftv, ip, name, get_source, get_sources, set_states):
         """Initialize the FireTV device."""
         from adb.adb_protocol import (
             InvalidChecksumError, InvalidCommandError, InvalidResponseError)
 
         self.firetv = ftv
 
+        self.ip = ip
         self._name = name
         self._get_source = get_source
         self._get_sources = get_sources
@@ -184,6 +204,10 @@ class FireTVDevice(MediaPlayerDevice):
         if not self._available:
             self._running_apps = None
             self._current_app = None
+
+            # If the device is not online, don't update.
+            if not ping(self.ip):
+                return
 
             # Try to connect
             self.firetv.connect()
