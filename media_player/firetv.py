@@ -48,7 +48,7 @@ def has_adb_files(value):
     cv.isfile(pub_key)
     return cv.isfile(priv_key)
 
-
+# Source: home-assistant/homeassistant/components/device_tracker/ping.py
 def ping(ip_address):
     """Send an ICMP echo request and return True if success."""
     if sys.platform == 'win32':
