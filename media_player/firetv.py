@@ -18,7 +18,7 @@ from homeassistant.const import (
     STATE_PLAYING, STATE_STANDBY)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['firetv==1.0.7']
+REQUIREMENTS = ['https://github.com/JeffLIrion/python-firetv/zipball/pure-python-adb#firetv==1.0.8']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,12 +28,15 @@ SUPPORT_FIRETV = SUPPORT_PAUSE | \
     SUPPORT_VOLUME_SET | SUPPORT_PLAY
 
 CONF_ADBKEY = 'adbkey'
+CONF_ADB_SERVER_IP = 'adb_server_ip'
+CONF_ADB_SERVER_PORT = 'adb_server_port'
 CONF_GET_SOURCE = 'get_source'
 CONF_GET_SOURCES = 'get_sources'
 CONF_SET_STATES = 'set_states'
 
 DEFAULT_NAME = 'Amazon Fire TV'
 DEFAULT_PORT = 5555
+DEFAULT_ADB_SERVER_PORT = 5037
 DEFAULT_GET_SOURCE = True
 DEFAULT_GET_SOURCES = True
 DEFAULT_SET_STATES = True
@@ -52,6 +55,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
     vol.Optional(CONF_ADBKEY): has_adb_files,
+    vol.Optional(CONF_ADB_SERVER_IP): cv.string,
+    vol.Optional(
+        CONF_ADB_SERVER_PORT, default=DEFAULT_ADB_SERVER_PORT): cv.port
     vol.Optional(CONF_GET_SOURCE, default=DEFAULT_GET_SOURCE): cv.boolean,
     vol.Optional(CONF_GET_SOURCES, default=DEFAULT_GET_SOURCES): cv.boolean,
     vol.Optional(CONF_SET_STATES, default=DEFAULT_SET_STATES): cv.boolean
@@ -67,12 +73,20 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     host = '{0}:{1}'.format(config[CONF_HOST], config[CONF_PORT])
 
-    if CONF_ADBKEY in config:
-        ftv = FireTV(host, config[CONF_ADBKEY])
-        adb_log = " using adbkey='{0}'".format(config[CONF_ADBKEY])
+    if CONF_ADB_SERVER_IP not in config:
+        # "python-adb"
+        if CONF_ADBKEY in config:
+            ftv = FireTV(host, config[CONF_ADBKEY])
+            adb_log = " using adbkey='{0}'".format(config[CONF_ADBKEY])
+        else:
+            ftv = FireTV(host)
+            adb_log = ""
     else:
-        ftv = FireTV(host)
-        adb_log = ""
+        # "pure-python-adb"
+        ftv = FireTV(host, adb_server_ip=config[CONF_ADB_SERVER_IP],
+                     adb_server_port=config[CONF_ADB_SERVER_PORT])
+        adb_log = " using ADB server at {0}:{1}".format(
+            config[CONF_ADB_SERVER_IP], config[CONF_ADB_SERVER_PORT])
 
     if not ftv.available:
         _LOGGER.warning("Could not connect to Fire TV at %s%s", host, adb_log)
@@ -89,25 +103,40 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
 
 def adb_decorator(override_available=False):
-    """Send an ADB command if the device is available."""
+    """Send an ADB command if the device is available and not locked."""
     def adb_wrapper(func):
-        """Wait until previous ADB commands have finished."""
+        """Wait if previous ADB commands haven't finished."""
         @functools.wraps(func)
         def _adb_wrapper(self, *args, **kwargs):
             # If the device is unavailable, don't do anything
             if not self.available and not override_available:
                 return None
 
-            # Acquire the lock, try to run the command, then release the lock
-            with self.adb_lock:
-                try:
-                    return func(self, *args, **kwargs)
-                except self.exceptions:
-                    _LOGGER.error('Failed to execute an ADB command; will '
-                                  'attempt to re-establish the ADB connection '
-                                  'in the next update')
-                    self._available = False  # pylint: disable=protected-access
+            # "python-adb"
+            if not self.firetv.adb_server_ip:
+                # If an ADB command is already running, skip this command
+                if not self.adb_lock.acquire(blocking=False):
+                    _LOGGER.info('Skipping an ADB command because a previous '
+                                 'command is still running')
                     return None
+
+                # More ADB commands will be prevented while trying this one
+                try:
+                    returns = func(self, *args, **kwargs)
+                except self.exceptions:
+                    _LOGGER.error('Failed to execute an ADB command;'
+                                  'will attempt to re-establish the ADB'
+                                  'connection in the next update')
+                    returns = None
+                    self._available = False  # pylint: disable=protected-access
+                finally:
+                    self.adb_lock.release()
+
+            # "pure-python-adb"
+            else:
+                returns = func(self, *args, **kwargs)
+
+            return returns
 
         return _adb_wrapper
 
@@ -133,9 +162,14 @@ class FireTVDevice(MediaPlayerDevice):
         self.adb_lock = threading.Lock()
 
         # ADB exceptions to catch
-        self.exceptions = (AttributeError, BrokenPipeError, TypeError,
-                           ValueError, InvalidChecksumError,
-                           InvalidCommandError, InvalidResponseError)
+        if not self.fire.adb_server_ip:
+            # "python-adb"
+            self.exceptions = (AttributeError, BrokenPipeError, TypeError,
+                               ValueError, InvalidChecksumError,
+                               InvalidCommandError, InvalidResponseError)
+        else:
+            # "pure-python-adb"
+            self.exceptions = tuple()
 
         self._state = None
         self._available = self.firetv.available
