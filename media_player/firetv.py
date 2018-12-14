@@ -220,8 +220,7 @@ class FireTVDevice(MediaPlayerDevice):
             self._current_app = None
 
             # Try to connect
-            self.firetv.connect()
-            self._available = self.firetv.available
+            self._available = self.firetv.connect()
 
         # If the ADB connection is not intact, don't update.
         if not self._available:
