@@ -92,7 +92,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         ftv = FireTV(host)
         adb_log = ""
 
-    if not ftv.available:
+    if not ftv.available and ping(config[CONF_HOST]):
         _LOGGER.warning("Could not connect to Fire TV at %s%s", host, adb_log)
         return
 
