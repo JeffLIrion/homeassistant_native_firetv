@@ -134,7 +134,14 @@ def adb_decorator(override_available=False):
 
             # "pure-python-adb"
             else:
-                returns = func(self, *args, **kwargs)
+                try:
+                    returns = func(self, *args, **kwargs)
+                except self.exceptions:
+                    _LOGGER.error('Failed to execute an ADB command; '
+                                  'will attempt to re-establish the ADB '
+                                  'connection in the next update')
+                    returns = None
+                    self._available = False  # pylint: disable=protected-access
 
             return returns
 
