@@ -124,8 +124,8 @@ def adb_decorator(override_available=False):
                 try:
                     returns = func(self, *args, **kwargs)
                 except self.exceptions:
-                    _LOGGER.error('Failed to execute an ADB command;'
-                                  'will attempt to re-establish the ADB'
+                    _LOGGER.error('Failed to execute an ADB command; '
+                                  'will attempt to re-establish the ADB '
                                   'connection in the next update')
                     returns = None
                     self._available = False  # pylint: disable=protected-access
@@ -150,6 +150,7 @@ class FireTVDevice(MediaPlayerDevice):
         """Initialize the FireTV device."""
         from adb.adb_protocol import (
             InvalidChecksumError, InvalidCommandError, InvalidResponseError)
+        from adb.usb_exceptions import TcpTimeoutException
 
         self.firetv = ftv
 
@@ -166,10 +167,11 @@ class FireTVDevice(MediaPlayerDevice):
             # "python-adb"
             self.exceptions = (AttributeError, BrokenPipeError, TypeError,
                                ValueError, InvalidChecksumError,
-                               InvalidCommandError, InvalidResponseError)
+                               InvalidCommandError, InvalidResponseError,
+                               TcpTimeoutException)
         else:
             # "pure-python-adb"
-            self.exceptions = tuple()
+            self.exceptions = (ConnectionResetError,)
 
         self._state = None
         self._available = self.firetv.available
