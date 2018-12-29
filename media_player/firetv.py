@@ -10,22 +10,21 @@ import threading
 import voluptuous as vol
 
 from homeassistant.components.media_player import (
-    MediaPlayerDevice, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE,
-    SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE, SUPPORT_STOP,
-    SUPPORT_TURN_OFF, SUPPORT_TURN_ON, SUPPORT_VOLUME_SET, )
+    DOMAIN, MediaPlayerDevice, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK,
+    SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE,
+    SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON)
 from homeassistant.const import (
-    CONF_HOST, CONF_NAME, CONF_PORT, STATE_IDLE, STATE_OFF, STATE_PAUSED,
-    STATE_PLAYING, STATE_STANDBY)
+    ATTR_ENTITY_ID, CONF_HOST, CONF_NAME, CONF_PORT, STATE_IDLE, STATE_OFF,
+    STATE_PAUSED, STATE_PLAYING, STATE_STANDBY)
 import homeassistant.helpers.config_validation as cv
 
 REQUIREMENTS = ['https://github.com/JeffLIrion/python-firetv/zipball/pure-python-adb#firetv==1.0.8']
 
 _LOGGER = logging.getLogger(__name__)
 
-SUPPORT_FIRETV = SUPPORT_PAUSE | \
+SUPPORT_FIRETV = SUPPORT_PAUSE | SUPPORT_PLAY | \
     SUPPORT_TURN_ON | SUPPORT_TURN_OFF | SUPPORT_PREVIOUS_TRACK | \
-    SUPPORT_NEXT_TRACK | SUPPORT_SELECT_SOURCE | SUPPORT_STOP | \
-    SUPPORT_VOLUME_SET | SUPPORT_PLAY
+    SUPPORT_NEXT_TRACK | SUPPORT_SELECT_SOURCE | SUPPORT_STOP
 
 CONF_ADBKEY = 'adbkey'
 CONF_ADB_SERVER_IP = 'adb_server_ip'
@@ -57,11 +56,20 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_ADBKEY): has_adb_files,
     vol.Optional(CONF_ADB_SERVER_IP): cv.string,
     vol.Optional(
-        CONF_ADB_SERVER_PORT, default=DEFAULT_ADB_SERVER_PORT): cv.port
+        CONF_ADB_SERVER_PORT, default=DEFAULT_ADB_SERVER_PORT): cv.port,
     vol.Optional(CONF_GET_SOURCE, default=DEFAULT_GET_SOURCE): cv.boolean,
     vol.Optional(CONF_GET_SOURCES, default=DEFAULT_GET_SOURCES): cv.boolean,
     vol.Optional(CONF_SET_STATES, default=DEFAULT_SET_STATES): cv.boolean
 })
+
+SERVICE_ADB_SHELL = 'firetv_adb_shell'
+
+SERVICE_ADB_SHELL_SCHEMA = vol.Schema({
+    vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Required('cmd'): cv.string
+})
+
+DATA_FIRETV = 'firetv'
 
 PACKAGE_LAUNCHER = "com.amazon.tv.launcher"
 PACKAGE_SETTINGS = "com.amazon.tv.settings"
@@ -69,6 +77,9 @@ PACKAGE_SETTINGS = "com.amazon.tv.settings"
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the FireTV platform."""
+    if DATA_FIRETV not in hass.data:
+        hass.data[DATA_FIRETV] = dict()
+
     from firetv import FireTV
 
     host = '{0}:{1}'.format(config[CONF_HOST], config[CONF_PORT])
@@ -99,55 +110,52 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     device = FireTVDevice(ftv, name, get_source, get_sources, set_states)
     add_entities([device])
+    hass.data[DATA_FIRETV][host] = device
     _LOGGER.info("Setup Fire TV at %s%s", host, adb_log)
+
+    if hass.services.has_service(DOMAIN, SERVICE_ADB_SHELL):
+        return
+
+    def service_adb_shell(service):
+        """Run ADB shell commands and log the output."""
+        params = {key: value for key, value in service.data.items()
+                  if key != ATTR_ENTITY_ID}
+
+        entity_id = service.data.get(ATTR_ENTITY_ID)
+        target_devices = [dev for dev in hass.data[DATA_FIRETV].values()
+                          if dev.entity_id in entity_id]
+
+        for target_device in target_devices:
+            output = target_device.firetv._adb_shell(params['cmd'])
+            _LOGGER.info("Output from command '%s' to %s: '%s'",
+                         params['cmd'], target_device.entity_id, output)
+
+    hass.services.register(DOMAIN, SERVICE_ADB_SHELL, service_adb_shell,
+                           schema=SERVICE_ADB_SHELL_SCHEMA)
 
 
 def adb_decorator(override_available=False):
-    """Send an ADB command if the device is available and not locked."""
-    def adb_wrapper(func):
+    """Send an ADB command if the device is available and catch exceptions."""
+    def _adb_decorator(func):
         """Wait if previous ADB commands haven't finished."""
         @functools.wraps(func)
-        def _adb_wrapper(self, *args, **kwargs):
+        def __adb_decorator(self, *args, **kwargs):
             # If the device is unavailable, don't do anything
             if not self.available and not override_available:
                 return None
 
-            # "python-adb"
-            if not self.firetv.adb_server_ip:
-                # If an ADB command is already running, skip this command
-                if not self.adb_lock.acquire(blocking=False):
-                    _LOGGER.info('Skipping an ADB command because a previous '
-                                 'command is still running')
-                    return None
+            try:
+                return func(self, *args, **kwargs)
+            except self.exceptions:
+                _LOGGER.error('Failed to execute an ADB command; will attempt '
+                              'to re-establish the ADB connection in the next '
+                              'update')
+                self._available = False  # pylint: disable=protected-access
+                return None
 
-                # More ADB commands will be prevented while trying this one
-                try:
-                    returns = func(self, *args, **kwargs)
-                except self.exceptions:
-                    _LOGGER.error('Failed to execute an ADB command; '
-                                  'will attempt to re-establish the ADB '
-                                  'connection in the next update')
-                    returns = None
-                    self._available = False  # pylint: disable=protected-access
-                finally:
-                    self.adb_lock.release()
+        return __adb_decorator
 
-            # "pure-python-adb"
-            else:
-                try:
-                    returns = func(self, *args, **kwargs)
-                except self.exceptions:
-                    _LOGGER.error('Failed to execute an ADB command; '
-                                  'will attempt to re-establish the ADB '
-                                  'connection in the next update')
-                    returns = None
-                    self._available = False  # pylint: disable=protected-access
-
-            return returns
-
-        return _adb_wrapper
-
-    return adb_wrapper
+    return _adb_decorator
 
 
 class FireTVDevice(MediaPlayerDevice):
@@ -155,10 +163,6 @@ class FireTVDevice(MediaPlayerDevice):
 
     def __init__(self, ftv, name, get_source, get_sources, set_states):
         """Initialize the FireTV device."""
-        from adb.adb_protocol import (
-            InvalidChecksumError, InvalidCommandError, InvalidResponseError)
-        from adb.usb_exceptions import TcpTimeoutException
-
         self.firetv = ftv
 
         self._name = name
@@ -170,8 +174,13 @@ class FireTVDevice(MediaPlayerDevice):
         self.adb_lock = threading.Lock()
 
         # ADB exceptions to catch
-        if not self.fire.adb_server_ip:
+        if not self.firetv.adb_server_ip:
             # "python-adb"
+            from adb.adb_protocol import (InvalidChecksumError,
+                                          InvalidCommandError,
+                                          InvalidResponseError)
+            from adb.usb_exceptions import TcpTimeoutException
+
             self.exceptions = (AttributeError, BrokenPipeError, TypeError,
                                ValueError, InvalidChecksumError,
                                InvalidCommandError, InvalidResponseError,
