@@ -63,8 +63,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 SERVICE_ADB_SHELL = 'firetv_adb_shell'
+SERVICE_ADB_STREAMING_SHELL = 'firetv_adb_streaming_shell'
 
 SERVICE_ADB_SHELL_SCHEMA = vol.Schema({
+    vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Required('cmd'): cv.string
+})
+
+SERVICE_ADB_STREAMING_SHELL_SCHEMA = vol.Schema({
     vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
     vol.Required('cmd'): cv.string
 })
@@ -130,8 +136,25 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
             _LOGGER.info("Output from command '%s' to %s: '%s'",
                          params['cmd'], target_device.entity_id, output)
 
+    def service_adb_streaming_shell(service):
+        """Run ADB shell commands and log the output."""
+        params = {key: value for key, value in service.data.items()
+                  if key != ATTR_ENTITY_ID}
+
+        entity_id = service.data.get(ATTR_ENTITY_ID)
+        target_devices = [dev for dev in hass.data[DATA_FIRETV].values()
+                          if dev.entity_id in entity_id]
+
+        for target_device in target_devices:
+            output = list(target_device.firetv._adb_streaming_shell(params['cmd']))
+            _LOGGER.info("Output from command '%s' to %s: '%s'",
+                         params['cmd'], target_device.entity_id, output)
+
     hass.services.register(DOMAIN, SERVICE_ADB_SHELL, service_adb_shell,
                            schema=SERVICE_ADB_SHELL_SCHEMA)
+
+    hass.services.register(DOMAIN, SERVICE_ADB_STREAMING_SHELL, service_adb_streaming_shell,
+                           schema=SERVICE_ADB_STREAMING_SHELL_SCHEMA)
 
 
 def adb_decorator(override_available=False):
