@@ -137,7 +137,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                          params['cmd'], target_device.entity_id, output)
 
     def service_adb_streaming_shell(service):
-        """Run ADB shell commands and log the output."""
+        """Run ADB streaming shell commands and log the output."""
         params = {key: value for key, value in service.data.items()
                   if key != ATTR_ENTITY_ID}
 
