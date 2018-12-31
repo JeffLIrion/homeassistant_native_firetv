@@ -259,18 +259,18 @@ class FireTVDevice(MediaPlayerDevice):
     def update(self):
         """Get the latest date and update device state."""
         # Check if device is disconnected.
-        _LOGGER.debug("'%s' is%s available", self._name, '' if self._available else ' not')
+        _LOGGER.critical("'%s' is%s available", self._name, '' if self._available else ' not')
         if not self._available:
             self._running_apps = None
             self._current_app = None
 
             # Try to connect
-            _LOGGER.debug("'%s' is attempting to re-connect...", self._name)
+            _LOGGER.critical("'%s' is attempting to re-connect...", self._name)
             self._available = self.firetv.connect()
             if self._available:
-                _LOGGER.debug("'%s' successfully re-connected", self._name)
+                _LOGGER.critical("'%s' successfully re-connected", self._name)
             else:
-                _LOGGER.debug("'%s' failed to re-connect", self._name)
+                _LOGGER.critical("'%s' failed to re-connect", self._name)
 
         # If the ADB connection is not intact, don't update.
         if not self._available:
@@ -291,9 +291,9 @@ class FireTVDevice(MediaPlayerDevice):
         else:
             # Get the running apps.
             if self._get_sources:
-                _LOGGER.debug("'%s' <checking the 'running_apps' property>", self._name)
+                _LOGGER.critical("'%s' (checking the 'running_apps' property)", self._name)
                 self._running_apps = self.firetv.running_apps
-                _LOGGER.debug("'%s' running apps are: '%s'", self._name, "', '".join(self._running_apps))
+                _LOGGER.critical("'%s' running apps are: '%s'", self._name, "', '".join(self._running_apps))
 
             # Get the current app.
             if self._get_source:
@@ -303,7 +303,7 @@ class FireTVDevice(MediaPlayerDevice):
                 else:
                     self._current_app = current_app
 
-                _LOGGER.debug("'%s' current_app is '%s'", self._name, str(self._current_app))
+                _LOGGER.critical("'%s' current_app is '%s'", self._name, str(self._current_app))
 
                 # Show the current app as the only running app.
                 if not self._get_sources:
@@ -407,37 +407,37 @@ class FireTVDevice(MediaPlayerDevice):
     @property
     @adb_decorator()
     def firetv_screen_on(self):
-        _LOGGER.debug("'%s' <checking the 'screen_on' property>", self._name)
+        _LOGGER.critical("'%s' (checking the 'screen_on' property)", self._name)
         output = self.firetv._adb_shell("dumpsys power | grep 'Display Power'")
         screen_on = 'state=ON' in output
-        _LOGGER.debug("'%s' is %s (output = '%s')", self._name, 'on' if screen_on else 'off', output)
+        _LOGGER.critical("'%s' is %s (output = '%s')", self._name, 'on' if screen_on else 'off', output)
         return screen_on
 
     @property
     @adb_decorator()
     def firetv_awake(self):
-        _LOGGER.debug("'%s' <checking the 'awake' property>", self._name)
+        _LOGGER.critical("'%s' (checking the 'awake' property)", self._name)
         output = self.firetv._adb_shell("dumpsys power | grep 'mWakefulness'")
         awake = 'Awake' in output
-        _LOGGER.debug("'%s' is %s (output = '%s')", self._name, 'not idle' if awake else 'idle', output)
+        _LOGGER.critical("'%s' is %s (output = '%s')", self._name, 'not idle' if awake else 'idle', output)
         return awake
 
     @property
     @adb_decorator()
     def firetv_wake_lock(self):
-        _LOGGER.debug("'%s' <checking the 'wake_lock' property>", self._name)
+        _LOGGER.critical("'%s' (checking the 'wake_lock' property)", self._name)
         output = self.firetv._adb_shell("dumpsys power | grep 'Locks'")
         wake_lock = 'size=0' in output
-        _LOGGER.debug("'%s' is %s (output = '%s')", self._name, 'playing' if wake_lock else 'paused', output)
+        _LOGGER.critical("'%s' is %s (output = '%s')", self._name, 'playing' if wake_lock else 'paused', output)
         return wake_lock
 
     @property
     @adb_decorator()
     def firetv_current_app(self):
-        _LOGGER.debug("'%s' <checking the 'current_app' property>", self._name)
+        _LOGGER.critical("'%s' (checking the 'current_app' property)", self._name)
         output = self.firetv._adb_shell("dumpsys window windows | grep 'mCurrentFocus'")
         if output is None:
-            _LOGGER.debug("'%s' current_app is <None> (output = None)", self._name)
+            _LOGGER.critical("'%s' current_app is None (output = None)", self._name)
             return None
 
         else:
@@ -448,10 +448,10 @@ class FireTVDevice(MediaPlayerDevice):
             if matches:
                 (pkg, activity) = matches.group('package', 'activity')
                 current_app = {"package": pkg, "activity": activity}
-                _LOGGER.debug("'%s' current_app is '%s' (output = '%s')", self._name, str(current_app), output)
+                _LOGGER.critical("'%s' current_app is '%s' (output = '%s')", self._name, str(current_app), output)
                 return current_app
 
             # case 2: current app could not be found
             else:
-                _LOGGER.debug("'%s' current_app is <None> (output = '%s')", self._name, output)
+                _LOGGER.critical("'%s' current_app is None (output = '%s')", self._name, output)
                 return None
