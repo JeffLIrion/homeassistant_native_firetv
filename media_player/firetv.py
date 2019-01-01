@@ -81,6 +81,12 @@ DATA_FIRETV = 'firetv'
 PACKAGE_LAUNCHER = "com.amazon.tv.launcher"
 PACKAGE_SETTINGS = "com.amazon.tv.settings"
 
+# constants that should be in the `firetv` package
+SCREEN_ON_CMD = "dumpsys power | grep 'Display Power' | grep -q 'state=ON' && echo -e '1\\c' || echo -e '0\\c'"
+AWAKE_CMD = "dumpsys power | grep mWakefulness | grep -q Awake && echo -e '1\\c' || echo '0\\c'"
+WAKE_LOCK_CMD = "dumpsys power | grep Locks | grep -q 'size=0' && echo -e '1\\c' || echo '0\\c'"
+CURRENT_APP_CMD = "dumpsys window windows | grep mCurrentFocus"
+
 WINDOW_REGEX = re.compile(r"Window\{(?P<id>.+?) (?P<user>.+) (?P<package>.+?)(?:\/(?P<activity>.+?))?\}$", re.MULTILINE)
 
 
@@ -136,8 +142,8 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
         for target_device in target_devices:
             output = target_device.firetv._adb_shell(params['cmd'])
-            _LOGGER.info("Output from command '%s' to %s: '%s'",
-                         params['cmd'], target_device.entity_id, output)
+            _LOGGER.critical("Output from command '%s' to %s: '%s'",
+                             params['cmd'], target_device.entity_id, output)
 
     def service_adb_streaming_shell(service):
         """Run ADB streaming shell commands and log the output."""
@@ -150,8 +156,8 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
         for target_device in target_devices:
             output = list(target_device.firetv._adb_streaming_shell(params['cmd']))
-            _LOGGER.info("Output from command '%s' to %s: '%s'",
-                         params['cmd'], target_device.entity_id, output)
+            _LOGGER.critical("Output from command '%s' to %s: '%s'",
+                             params['cmd'], target_device.entity_id, output)
 
     hass.services.register(DOMAIN, SERVICE_ADB_SHELL, service_adb_shell,
                            schema=SERVICE_ADB_SHELL_SCHEMA)
@@ -257,7 +263,7 @@ class FireTVDevice(MediaPlayerDevice):
 
     @adb_decorator(override_available=True)
     def update(self):
-        """Get the latest date and update device state."""
+        """Update the device state."""
         # Check if device is disconnected.
         _LOGGER.critical("'%s' is%s available", self._name, '' if self._available else ' not')
         if not self._available:
@@ -272,65 +278,54 @@ class FireTVDevice(MediaPlayerDevice):
             else:
                 _LOGGER.critical("'%s' failed to re-connect", self._name)
 
+            # To be safe, don't run any ADB commands now, wait until the next update.
+            return
+
         # If the ADB connection is not intact, don't update.
         if not self._available:
             return
 
+        # The `screen_on`, `awake`, `wake_lock`, and `current_app` properties.
+        _LOGGER.critical("'%s' is attempting to get the state properties...", self._name)
+        properties = self.firetv_properties()
+        if not properties:
+            return
+        screen_on, awake, wake_lock, current_app = properties
+        _LOGGER.critical("'%s' has the properties {'screen_on': %s, 'awake': %s, 'wake_lock': %s, 'current_app': %s}",
+                         self._name, str(screen_on), str(awake), str(wake_lock), str(current_app))
+
         # Check if device is off.
-        if not self.firetv_screen_on:
+        if not screen_on:
             self._state = STATE_OFF
             self._running_apps = None
             self._current_app = None
 
         # Check if screen saver is on.
-        elif not self.firetv_awake:
+        elif not awake:
             self._state = STATE_IDLE
             self._running_apps = None
             self._current_app = None
 
         else:
-            # Get the running apps.
-            if self._get_sources:
-                _LOGGER.critical("'%s' (checking the 'running_apps' property)", self._name)
-                self._running_apps = self.firetv.running_apps
-                _LOGGER.critical("'%s' running apps are: '%s'", self._name, "', '".join(self._running_apps))
+            self._current_app = current_app
 
-            # Get the current app.
-            if self._get_source:
-                current_app = self.firetv_current_app
-                if isinstance(current_app, dict) and 'package' in current_app:
-                    self._current_app = current_app['package']
-                else:
-                    self._current_app = current_app
-
-                _LOGGER.critical("'%s' current_app is '%s'", self._name, str(self._current_app))
-
-                # Show the current app as the only running app.
-                if not self._get_sources:
-                    if self._current_app:
-                        self._running_apps = [self._current_app]
-                    else:
-                        self._running_apps = None
-
-                # Check if the launcher is active.
-                if self._current_app in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
-                    self._state = STATE_STANDBY
-
-                # Check for a wake lock (device is playing).
-                elif self.firetv_wake_lock:
-                    self._state = STATE_PLAYING
-
-                # Otherwise, device is paused.
-                else:
-                    self._state = STATE_PAUSED
-
-            # Don't get the current app.
-            elif self.firetv_wake_lock:
-                # Check for a wake lock (device is playing).
-                self._state = STATE_PLAYING
+            # Show the current app as the only running app.
+            if self._current_app:
+                self._running_apps = [self._current_app]
             else:
-                # Assume the devices is on standby.
+                self._running_apps = None
+
+            # Check if the launcher is active.
+            if self._current_app in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
                 self._state = STATE_STANDBY
+
+            # Check for a wake lock (device is playing).
+            elif wake_lock:
+                self._state = STATE_PLAYING
+
+            # Otherwise, device is paused.
+            else:
+                self._state = STATE_PAUSED
 
     @adb_decorator()
     def turn_on(self):
@@ -455,3 +450,29 @@ class FireTVDevice(MediaPlayerDevice):
             else:
                 _LOGGER.critical("'%s' current_app is None (output = '%s')", self._name, output)
                 return None
+
+    @adb_decorator()
+    def firetv_properties(self):
+        """Get the ``screen_on``, ``awake``, ``wake_lock``, and ``current_app`` properties."""
+        output = self.firetv._adb_shell(SCREEN_ON_CMD + " && " + AWAKE_CMD + " && " + WAKE_LOCK_CMD + " && " + CURRENT_APP_CMD)
+
+        if not output:
+            return None, None, None, None
+
+        screen_on = output[0] == '1'
+        awake = output[1] == '1'
+        wake_lock = output[2] == '1'
+
+        if len(output) < 4:
+            return screen_on, awake, wake_lock, None
+
+        current_focus = output[3:].replace("\r", "")
+        matches = WINDOW_REGEX.search(current_focus)
+
+        # case 1: current app was successfully found
+        if matches:
+            (pkg, activity) = matches.group('package', 'activity')
+            return screen_on, awake, wake_lock, pkg
+
+        # case 2: current app was not found
+        return screen_on, awake, wake_lock, None
