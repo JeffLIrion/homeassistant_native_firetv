@@ -63,8 +63,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 SERVICE_ADB_SHELL = 'firetv_adb_shell'
+SERVICE_ADB_STREAMING_SHELL = 'firetv_adb_streaming_shell'
 
 SERVICE_ADB_SHELL_SCHEMA = vol.Schema({
+    vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Required('cmd'): cv.string
+})
+
+SERVICE_ADB_STREAMING_SHELL_SCHEMA = vol.Schema({
     vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
     vol.Required('cmd'): cv.string
 })
