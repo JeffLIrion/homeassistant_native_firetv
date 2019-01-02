@@ -133,7 +133,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
         for target_device in target_devices:
             cmd = params['cmd']
-            output = target_device.firetv._adb_shell(cmd)
+            output = target_device.firetv.adb_shell(cmd)
             _LOGGER.info("Output from command '%s' to %s: '%s'",
                          cmd, target_device.entity_id, output)
 
@@ -148,7 +148,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
         for target_device in target_devices:
             cmd = params['cmd']
-            output = list(target_device.firetv._adb_streaming_shell(cmd))
+            output = list(target_device.firetv.adb_streaming_shell(cmd))
             _LOGGER.info("Output from command '%s' to %s: '%s'",
                          cmd, target_device.entity_id, output)
 
