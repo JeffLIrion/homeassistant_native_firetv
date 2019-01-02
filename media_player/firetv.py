@@ -135,7 +135,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
             cmd = params['cmd']
             output = target_device.firetv.adb_shell(cmd)
             _LOGGER.info("Output from command '%s' to %s: '%s'",
-                         cmd, target_device.entity_id, output)
+                         cmd, target_device.entity_id, repr(output))
 
     def service_adb_streaming_shell(service):
         """Run ADB streaming shell commands and log the output."""
@@ -150,7 +150,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
             cmd = params['cmd']
             output = list(target_device.firetv.adb_streaming_shell(cmd))
             _LOGGER.info("Output from command '%s' to %s: '%s'",
-                         cmd, target_device.entity_id, output)
+                         cmd, target_device.entity_id, repr(output))
 
     hass.services.register(DOMAIN, SERVICE_ADB_SHELL, service_adb_shell,
                            schema=SERVICE_ADB_SHELL_SCHEMA)
