@@ -126,12 +126,32 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                           if dev.entity_id in entity_id]
 
         for target_device in target_devices:
-            output = target_device.firetv._adb_shell(params['cmd'])
+            cmd = params['cmd']
+            output = target_device.firetv._adb_shell(cmd)
             _LOGGER.info("Output from command '%s' to %s: '%s'",
-                         params['cmd'], target_device.entity_id, output)
+                         cmd, target_device.entity_id, output)
+
+    def service_adb_streaming_shell(service):
+        """Run ADB streaming shell commands and log the output."""
+        params = {key: value for key, value in service.data.items()
+                  if key != ATTR_ENTITY_ID}
+
+        entity_id = service.data.get(ATTR_ENTITY_ID)
+        target_devices = [dev for dev in hass.data[DATA_FIRETV].values()
+                          if dev.entity_id in entity_id]
+
+        for target_device in target_devices:
+            cmd = params['cmd']
+            output = list(target_device.firetv._adb_streaming_shell(cmd))
+            _LOGGER.info("Output from command '%s' to %s: '%s'",
+                         cmd, target_device.entity_id, output)
 
     hass.services.register(DOMAIN, SERVICE_ADB_SHELL, service_adb_shell,
                            schema=SERVICE_ADB_SHELL_SCHEMA)
+
+    hass.services.register(DOMAIN, SERVICE_ADB_STREAMING_SHELL,
+                           service_adb_streaming_shell,
+                           schema=SERVICE_ADB_STREAMING_SHELL_SCHEMA)
 
 
 def adb_decorator(override_available=False):
@@ -240,63 +260,54 @@ class FireTVDevice(MediaPlayerDevice):
             # Try to connect
             self._available = self.firetv.connect()
 
+            # To be safe, wait until the next update to run ADB commands.
+            return
+
         # If the ADB connection is not intact, don't update.
         if not self._available:
             return
 
+        # The `screen_on`, `awake`, `wake_lock`, and `current_app` properties.
+        screen_on, awake, wake_lock, current_app = self.firetv.get_properties()
+
         # Check if device is off.
-        if not self.firetv.screen_on:
+        if not screen_on:
             self._state = STATE_OFF
             self._running_apps = None
             self._current_app = None
 
         # Check if screen saver is on.
-        elif not self.firetv.awake:
+        elif not awake:
             self._state = STATE_IDLE
             self._running_apps = None
             self._current_app = None
 
         else:
+            # Get the current app.
+            if isinstance(current_app, dict) and 'package' in current_app:
+                self._current_app = current_app['package']
+            else:
+                self._current_app = current_app
+
             # Get the running apps.
             if self._get_sources:
                 self._running_apps = self.firetv.running_apps
-
-            # Get the current app.
-            if self._get_source:
-                current_app = self.firetv.current_app
-                if isinstance(current_app, dict)\
-                        and 'package' in current_app:
-                    self._current_app = current_app['package']
-                else:
-                    self._current_app = current_app
-
-                # Show the current app as the only running app.
-                if not self._get_sources:
-                    if self._current_app:
-                        self._running_apps = [self._current_app]
-                    else:
-                        self._running_apps = None
-
-                # Check if the launcher is active.
-                if self._current_app in [PACKAGE_LAUNCHER,
-                                         PACKAGE_SETTINGS]:
-                    self._state = STATE_STANDBY
-
-                # Check for a wake lock (device is playing).
-                elif self.firetv.wake_lock:
-                    self._state = STATE_PLAYING
-
-                # Otherwise, device is paused.
-                else:
-                    self._state = STATE_PAUSED
-
-            # Don't get the current app.
-            elif self.firetv.wake_lock:
-                # Check for a wake lock (device is playing).
-                self._state = STATE_PLAYING
+            elif self._current_app:
+                self._running_apps = [self._current_app]
             else:
-                # Assume the devices is on standby.
+                self._running_apps = None
+
+            # Check if the launcher is active.
+            if self._current_app in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
                 self._state = STATE_STANDBY
+
+            # Check for a wake lock (device is playing).
+            elif wake_lock:
+                self._state = STATE_PLAYING
+
+            # Otherwise, device is paused.
+            else:
+                self._state = STATE_PAUSED
 
     @adb_decorator()
     def turn_on(self):
