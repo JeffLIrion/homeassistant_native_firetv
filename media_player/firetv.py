@@ -119,7 +119,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                           if dev.entity_id in entity_id]
 
         for target_device in target_devices:
-            key = target_device.firetv.KEYS.get(cmd)
+            key = target_device.KEYS.get(cmd)
             if key:
                 output = target_device.firetv.adb_shell(
                     'input keyevent {}'.format(key))
