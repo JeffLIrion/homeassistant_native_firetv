@@ -10,12 +10,12 @@ import threading
 import voluptuous as vol
 
 from homeassistant.components.media_player import (
-    MediaPlayerDevice, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE,
-    SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE, SUPPORT_STOP,
-    SUPPORT_TURN_OFF, SUPPORT_TURN_ON)
+    DOMAIN, MediaPlayerDevice, PLATFORM_SCHEMA, SUPPORT_NEXT_TRACK,
+    SUPPORT_PAUSE, SUPPORT_PLAY, SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE,
+    SUPPORT_STOP, SUPPORT_TURN_OFF, SUPPORT_TURN_ON)
 from homeassistant.const import (
-    CONF_HOST, CONF_NAME, CONF_PORT, STATE_IDLE, STATE_OFF, STATE_PAUSED,
-    STATE_PLAYING, STATE_STANDBY)
+    ATTR_ENTITY_ID, CONF_HOST, CONF_NAME, CONF_PORT, STATE_IDLE, STATE_OFF,
+    STATE_PAUSED, STATE_PLAYING, STATE_STANDBY)
 import homeassistant.helpers.config_validation as cv
 
 REQUIREMENTS = ['https://github.com/JeffLIrion/python-firetv/zipball/pure-python-adb#firetv==1.0.8']
@@ -56,12 +56,30 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_GET_SOURCES, default=DEFAULT_GET_SOURCES): cv.boolean
 })
 
+SERVICE_ADB_SHELL = 'firetv_adb_shell'
+SERVICE_ADB_STREAMING_SHELL = 'firetv_adb_streaming_shell'
+
+SERVICE_ADB_SHELL_SCHEMA = vol.Schema({
+    vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Required('cmd'): cv.string
+})
+
+SERVICE_ADB_STREAMING_SHELL_SCHEMA = vol.Schema({
+    vol.Required(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Required('cmd'): cv.string
+})
+
+DATA_FIRETV = 'firetv'
+
 PACKAGE_LAUNCHER = "com.amazon.tv.launcher"
 PACKAGE_SETTINGS = "com.amazon.tv.settings"
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the FireTV platform."""
+    if DATA_FIRETV not in hass.data:
+        hass.data[DATA_FIRETV] = dict()
+
     from firetv import FireTV
 
     host = '{0}:{1}'.format(config[CONF_HOST], config[CONF_PORT])
@@ -90,7 +108,48 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
     device = FireTVDevice(ftv, name, get_sources)
     add_entities([device])
+    hass.data[DATA_FIRETV][host] = device
     _LOGGER.debug("Setup Fire TV at %s%s", host, adb_log)
+
+    if hass.services.has_service(DOMAIN, SERVICE_ADB_SHELL):
+        return
+
+    def service_adb_shell(service):
+        """Run ADB shell commands and log the output."""
+        params = {key: value for key, value in service.data.items()
+                  if key != ATTR_ENTITY_ID}
+
+        entity_id = service.data.get(ATTR_ENTITY_ID)
+        target_devices = [dev for dev in hass.data[DATA_FIRETV].values()
+                          if dev.entity_id in entity_id]
+
+        for target_device in target_devices:
+            cmd = params['cmd']
+            output = target_device.firetv.adb_shell(cmd)
+            _LOGGER.critical("Output from command '%s' to %s: '%s'",
+                             cmd, target_device.entity_id, repr(output))
+
+    def service_adb_streaming_shell(service):
+        """Run ADB streaming shell commands and log the output."""
+        params = {key: value for key, value in service.data.items()
+                  if key != ATTR_ENTITY_ID}
+
+        entity_id = service.data.get(ATTR_ENTITY_ID)
+        target_devices = [dev for dev in hass.data[DATA_FIRETV].values()
+                          if dev.entity_id in entity_id]
+
+        for target_device in target_devices:
+            cmd = params['cmd']
+            output = list(target_device.firetv.adb_streaming_shell(cmd))
+            _LOGGER.critical("Output from command '%s' to %s: '%s'",
+                             cmd, target_device.entity_id, repr(output))
+
+    hass.services.register(DOMAIN, SERVICE_ADB_SHELL, service_adb_shell,
+                           schema=SERVICE_ADB_SHELL_SCHEMA)
+
+    hass.services.register(DOMAIN, SERVICE_ADB_STREAMING_SHELL,
+                           service_adb_streaming_shell,
+                           schema=SERVICE_ADB_STREAMING_SHELL_SCHEMA)
 
 
 def adb_decorator(override_available=False):
