@@ -255,11 +255,13 @@ class FireTVDevice(MediaPlayerDevice):
     def turn_on(self):
         """Turn on the device."""
         self.firetv.turn_on()
+        self._state = STATE_IDLE
 
     @adb_decorator()
     def turn_off(self):
         """Turn off the device."""
         self.firetv.turn_off()
+        self._state = STATE_OFF
 
     @adb_decorator()
     def media_play(self):
@@ -311,5 +313,8 @@ class FireTVDevice(MediaPlayerDevice):
         if isinstance(source, str):
             if not source.startswith('!'):
                 self.firetv.launch_app(source)
+                self._current_app = source
             else:
                 self.firetv.stop_app(source[1:].lstrip())
+                self._current_app = PACKAGE_LAUNCHER
+                self._state = STATE_STANDBY
