@@ -18,7 +18,7 @@ from homeassistant.const import (
     STATE_PAUSED, STATE_PLAYING, STATE_STANDBY)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['https://github.com/JeffLIrion/python-firetv/zipball/pure-python-adb#firetv==1.0.8']
+REQUIREMENTS = ['https://github.com/JeffLIrion/python-firetv/zipball/next-release#firetv==1.0.8']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,6 +68,13 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 PACKAGE_LAUNCHER = "com.amazon.tv.launcher"
 PACKAGE_SETTINGS = "com.amazon.tv.settings"
+
+# Translate from `FireTV` reported state to HA state.
+FIRETV_STATES = {'off': STATE_OFF,
+                 'idle': STATE_IDLE,
+                 'standby': STATE_STANDBY,
+                 'playing': STATE_PLAYING,
+                 'paused': STATE_PAUSED}
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -253,47 +260,11 @@ class FireTVDevice(MediaPlayerDevice):
         if not self._available:
             return
 
-        # The `screen_on`, `awake`, `wake_lock`, and `current_app` properties.
-        screen_on, awake, wake_lock, current_app = self.firetv.get_properties()
+        # Get the `state`, `current_app`, and `running_apps`.
+        ftv_state, self._current_app, self._running_apps = \
+            self.firetv.update(self._get_sources)
 
-        # Check if device is off.
-        if not screen_on:
-            self._state = STATE_OFF
-            self._running_apps = None
-            self._current_app = None
-
-        # Check if screen saver is on.
-        elif not awake:
-            self._state = STATE_IDLE
-            self._running_apps = None
-            self._current_app = None
-
-        else:
-            # Get the current app.
-            if isinstance(current_app, dict) and 'package' in current_app:
-                self._current_app = current_app['package']
-            else:
-                self._current_app = current_app
-
-            # Get the running apps.
-            if self._get_sources:
-                self._running_apps = self.firetv.running_apps
-            elif self._current_app:
-                self._running_apps = [self._current_app]
-            else:
-                self._running_apps = None
-
-            # Check if the launcher is active.
-            if self._current_app in [PACKAGE_LAUNCHER, PACKAGE_SETTINGS]:
-                self._state = STATE_STANDBY
-
-            # Check for a wake lock (device is playing).
-            elif wake_lock:
-                self._state = STATE_PLAYING
-
-            # Otherwise, device is paused.
-            else:
-                self._state = STATE_PAUSED
+        self._state = FIRETV_STATES[ftv_state]
 
     @adb_decorator()
     def turn_on(self):
