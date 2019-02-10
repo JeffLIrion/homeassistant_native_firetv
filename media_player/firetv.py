@@ -140,7 +140,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
             # log the output (key commands have no output)
             if output and not key:
-                _LOGGER.info("Output of command '%s' from '%s': '%s'",
+                _LOGGER.info("Output of command '%s' from '%s': %s",
                              cmd, target_device.entity_id, repr(output))
 
     hass.services.register(DOMAIN, SERVICE_ADB_CMD, service_adb_cmd,
