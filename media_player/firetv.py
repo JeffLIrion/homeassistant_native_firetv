@@ -11,10 +11,16 @@ import voluptuous as vol
 
 from homeassistant.components.media_player import (
     MediaPlayerDevice, PLATFORM_SCHEMA)
-from homeassistant.components.media_player.const import (
-    DOMAIN, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PLAY,
-    SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE, SUPPORT_STOP,
-    SUPPORT_TURN_OFF, SUPPORT_TURN_ON)
+try:
+    from homeassistant.components.media_player.const import (
+        DOMAIN, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PLAY,
+        SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE, SUPPORT_STOP,
+        SUPPORT_TURN_OFF, SUPPORT_TURN_ON)
+except ImportError:
+    from homeassistant.components.media_player import (
+        DOMAIN, SUPPORT_NEXT_TRACK, SUPPORT_PAUSE, SUPPORT_PLAY,
+        SUPPORT_PREVIOUS_TRACK, SUPPORT_SELECT_SOURCE, SUPPORT_STOP,
+        SUPPORT_TURN_OFF, SUPPORT_TURN_ON)
 from homeassistant.const import (
     ATTR_ENTITY_ID, CONF_HOST, CONF_NAME, CONF_PORT, STATE_IDLE, STATE_OFF,
     STATE_PAUSED, STATE_PLAYING, STATE_STANDBY)
