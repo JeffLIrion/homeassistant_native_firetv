@@ -6,7 +6,6 @@ https://home-assistant.io/components/media_player.firetv/
 """
 import functools
 import logging
-import threading
 import voluptuous as vol
 
 from homeassistant.components.media_player import (
@@ -131,15 +130,10 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
                           if dev.entity_id in entity_id]
 
         for target_device in target_devices:
-            key = target_device.KEYS.get(cmd)
-            if key:
-                output = target_device.firetv.adb_shell(
-                    'input keyevent {}'.format(key))
-            else:
-                output = target_device.firetv.adb_shell(cmd)
+            output = target_device.adb_cmd(cmd)
 
-            # log the output (key commands have no output)
-            if output and not key:
+            # log the output if there is any
+            if output:
                 _LOGGER.info("Output of command '%s' from '%s': %s",
                              cmd, target_device.entity_id, repr(output))
 
@@ -182,9 +176,6 @@ class FireTVDevice(MediaPlayerDevice):
 
         self._name = name
         self._get_sources = get_sources
-
-        # whether or not the ADB connection is currently in use
-        self.adb_lock = threading.Lock()
 
         # ADB exceptions to catch
         if not self.firetv.adb_server_ip:
@@ -338,3 +329,11 @@ class FireTVDevice(MediaPlayerDevice):
                 self.firetv.launch_app(source)
             else:
                 self.firetv.stop_app(source[1:].lstrip())
+
+    @adb_decorator()
+    def adb_cmd(self, cmd):
+        """Send an ADB command to a Fire TV device."""
+        key = self.KEYS.get(cmd)
+        if key:
+            return self.firetv.adb_shell('input keyevent {}'.format(key))
+        return self.firetv.adb_shell(cmd)
