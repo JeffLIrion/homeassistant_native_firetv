@@ -25,7 +25,7 @@ from homeassistant.const import (
     STATE_PAUSED, STATE_PLAYING, STATE_STANDBY)
 import homeassistant.helpers.config_validation as cv
 
-REQUIREMENTS = ['https://github.com/happyleavesaoc/python-firetv/zipball/master#firetv==1.0.8']
+REQUIREMENTS = ['firetv==1.0.8']
 
 _LOGGER = logging.getLogger(__name__)
 
