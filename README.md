@@ -1,3 +1,8 @@
+# DEPRECATED!!!
+
+This is deprecated in favor of the official Android TV integration: https://www.home-assistant.io/integrations/androidtv/
+
+
 # Native support for Fire TV in Home Assistant
 
 No Python 2 service necessary!  And it can also handle device authentication.
